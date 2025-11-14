@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import configuration from './config/configuration';
 import { validationSchema } from './config/validation.schema';
 import { getTypeOrmConfig } from './config/typeorm.config';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { getTypeOrmConfig } from './config/typeorm.config';
       useFactory: (configService: ConfigService) =>
         getTypeOrmConfig(configService),
     }),
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
