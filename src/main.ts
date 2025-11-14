@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -8,6 +8,9 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+  const logger = new Logger('Bootstrap');
+
+  app.enableShutdownHooks();
 
   // Global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
@@ -46,5 +49,16 @@ async function bootstrap() {
 
   const port = configService.get<number>('port') ?? 3000;
   await app.listen(port);
+
+  logger.log(`Application is running on: http://localhost:${port}`);
+  logger.log(`Swagger documentation: http://localhost:${port}/api`);
+
+  process.on('SIGTERM', () => {
+    logger.log('SIGTERM signal received: closing HTTP server');
+  });
+
+  process.on('SIGINT', () => {
+    logger.log('SIGINT signal received: closing HTTP server');
+  });
 }
-bootstrap();
+void bootstrap();
