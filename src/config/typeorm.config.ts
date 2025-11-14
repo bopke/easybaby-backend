@@ -11,6 +11,8 @@ export const getTypeOrmConfig = (
   password: configService.get<string>('database.password'),
   database: configService.get<string>('database.name'),
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-  synchronize: configService.get<string>('nodeEnv') === 'development',
+  migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+  synchronize: false, // Always use migrations instead of synchronize
+  migrationsRun: true, // Automatically run migrations on startup
   logging: configService.get<string>('nodeEnv') === 'development',
 });
