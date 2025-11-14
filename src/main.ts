@@ -7,6 +7,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
+  // Enable CORS
+  const corsOrigin = configService.get<string>('cors.origin');
+  app.enableCors({
+    origin:
+      corsOrigin === '*' ? '*' : corsOrigin?.split(',').map((o) => o.trim()),
+    credentials: true,
+  });
+
   const nodeEnv = configService.get<string>('nodeEnv');
   if (nodeEnv !== 'production') {
     const config = new DocumentBuilder()
