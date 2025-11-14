@@ -5,13 +5,9 @@ services:
     image: postgres:17
     restart: always
     environment:
-      NODE_ENV: development
-      DATABASE_HOST: localhost
-      DATABASE_PORT: 5432
-      DATABASE_USER: postgres
-      DATABASE_PASSWORD: postgres
-      DATABASE_NAME: postgres
-      JWT_SECRET: changeme
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
     networks:
       - db
     profiles:
@@ -24,6 +20,8 @@ services:
     depends_on:
       - postgres
     environment:
+      NODE_ENV: production
+      JWT_SECRET: changeme
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_USER: postgres
