@@ -20,7 +20,7 @@ services:
     depends_on:
       - postgres
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       JWT_SECRET: changeme
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
