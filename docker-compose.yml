@@ -33,6 +33,9 @@ services:
       DATABASE_USER: postgres
       DATABASE_PASSWORD: postgres
       DATABASE_NAME: postgres
+      BREVO_API_KEY: provide_me
+      DEFAULT_SENDER_EMAIL: noreply@bopke.dev
+      DEFAULT_SENDER_NAME: someone
     healthcheck:
       test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/health']
       interval: 30s

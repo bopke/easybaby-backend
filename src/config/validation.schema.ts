@@ -12,4 +12,7 @@ export const validationSchema = Joi.object({
   DATABASE_PASSWORD: Joi.string().required(),
   DATABASE_NAME: Joi.string().required(),
   JWT_SECRET: Joi.string().required(),
+  BREVO_API_KEY: Joi.string().optional(),
+  DEFAULT_SENDER_EMAIL: Joi.string().required(),
+  DEFAULT_SENDER_NAME: Joi.string().required(),
 });

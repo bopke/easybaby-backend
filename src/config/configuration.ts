@@ -14,4 +14,9 @@ export default () => ({
   jwt: {
     secret: process.env.JWT_SECRET,
   },
+  email: {
+    brevoApiKey: process.env.BREVO_API_KEY,
+    defaultSenderEmail: process.env.DEFAULT_SENDER_EMAIL,
+    defaultSenderName: process.env.DEFAULT_SENDER_NAME,
+  },
 });

@@ -10,6 +10,7 @@ import { validationSchema } from './config/validation.schema';
 import { getTypeOrmConfig } from './config/typeorm.config';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     ]),
     HealthModule,
     UsersModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [
