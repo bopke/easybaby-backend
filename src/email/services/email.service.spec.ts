@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from './email.service';
 import { TransactionalEmailsApi } from '@getbrevo/brevo';
-import { SendEmailDto } from './dto/send-email.dto';
+import { SendEmailDto } from '../dtos';
 
 jest.mock('@getbrevo/brevo');
 

@@ -10,9 +10,8 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { UsersService } from './users.service';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserResponseDto } from './dto/user-response.dto';
+import { UsersService } from '../services/users.service';
+import { UpdateUserDto, UserResponseDto } from '../dtos';
 
 @ApiTags('Users')
 @Controller('users')

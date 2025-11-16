@@ -4,8 +4,9 @@ import { Repository } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
-import { User, UserRole } from './user.entity';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { User } from '../entities/user.entity';
+import { UserRole } from '../entities/enums';
+import { UpdateUserDto } from '../dtos';
 
 jest.mock('bcrypt');
 

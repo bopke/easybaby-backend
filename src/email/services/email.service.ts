@@ -5,7 +5,7 @@ import {
   TransactionalEmailsApi,
   TransactionalEmailsApiApiKeys,
 } from '@getbrevo/brevo';
-import { SendEmailDto } from './dto/send-email.dto';
+import { SendEmailDto } from '../dtos';
 
 @Injectable()
 export class EmailService {

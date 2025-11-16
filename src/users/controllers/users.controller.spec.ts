@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { UsersController } from './users.controller';
-import { UsersService } from './users.service';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { User, UserRole } from './user.entity';
+import { UsersService } from '../services/users.service';
+import { UpdateUserDto } from '../dtos';
+import { User } from '../entities/user.entity';
+import { UserRole } from '../entities/enums';
 
 describe('UsersController', () => {
   let controller: UsersController;
