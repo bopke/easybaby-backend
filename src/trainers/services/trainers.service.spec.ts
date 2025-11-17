@@ -4,7 +4,12 @@ import { Repository, Like, LessThan, MoreThan, Between } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { TrainersService } from './trainers.service';
 import { Trainer } from '../entities';
-import { CreateTrainerDto, UpdateTrainerDto, FilterTrainerDto } from '../dtos';
+import {
+  CreateTrainerDto,
+  UpdateTrainerDto,
+  FilterTrainerDto,
+  OrderTrainerDto,
+} from '../dtos';
 import { mockTrainer } from '../mocks';
 
 describe('TrainersService', () => {
@@ -313,6 +318,104 @@ describe('TrainersService', () => {
         order: { createdAt: 'DESC' },
         skip: 0,
         take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should order trainers by single field ascending', async () => {
+      const ordering: OrderTrainerDto = { order: ['name:asc'] };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll(
+        { page: 1, limit: 10 },
+        {},
+        ordering,
+      );
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: {},
+        order: { name: 'ASC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should order trainers by single field descending', async () => {
+      const ordering: OrderTrainerDto = { order: ['city:desc'] };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll(
+        { page: 1, limit: 10 },
+        {},
+        ordering,
+      );
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: {},
+        order: { city: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should order trainers by multiple fields', async () => {
+      const ordering: OrderTrainerDto = {
+        order: ['voivodeship:asc', 'city:asc', 'name:desc'],
+      };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll(
+        { page: 1, limit: 10 },
+        {},
+        ordering,
+      );
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: {},
+        order: { voivodeship: 'ASC', city: 'ASC', name: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should use default ordering when no order specified', async () => {
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll({ page: 1, limit: 10 }, {}, {});
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: {},
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should combine filtering, ordering, and pagination', async () => {
+      const filters: FilterTrainerDto = { city: 'Warszawa' };
+      const ordering: OrderTrainerDto = { order: ['name:asc'] };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll(
+        { page: 2, limit: 20 },
+        filters,
+        ordering,
+      );
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: { city: Like('%Warszawa%') },
+        order: { name: 'ASC' },
+        skip: 20,
+        take: 20,
       });
       expect(result.data).toEqual(trainers);
     });

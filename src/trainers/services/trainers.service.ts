@@ -4,12 +4,18 @@ import {
   Repository,
   Like,
   FindOptionsWhere,
+  FindOptionsOrder,
   LessThan,
   MoreThan,
   Between,
 } from 'typeorm';
 import { Trainer } from '../entities';
-import { CreateTrainerDto, UpdateTrainerDto, FilterTrainerDto } from '../dtos';
+import {
+  CreateTrainerDto,
+  UpdateTrainerDto,
+  FilterTrainerDto,
+  OrderTrainerDto,
+} from '../dtos';
 import { Paginated, Pagination } from '../../common/pagination';
 
 @Injectable()
@@ -19,17 +25,18 @@ export class TrainersService {
     private readonly trainersRepository: Repository<Trainer>,
   ) {}
 
-  // TODO: Parametrize ordering
   async findAll(
     pagination: Pagination = { page: 1, limit: 10 },
     filters: FilterTrainerDto = {},
+    ordering: OrderTrainerDto = {},
   ): Promise<Paginated<Trainer>> {
     const { page, limit } = pagination;
     const where = this.buildWhereClause(filters);
+    const order = this.buildOrderClause(ordering);
 
     const [trainers, total] = await this.trainersRepository.findAndCount({
       where,
-      order: { createdAt: 'DESC' },
+      order,
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -102,6 +109,26 @@ export class TrainersService {
     }
 
     return where;
+  }
+
+  private buildOrderClause(
+    ordering: OrderTrainerDto,
+  ): FindOptionsOrder<Trainer> {
+    const order: FindOptionsOrder<Trainer> = {};
+
+    if (ordering.order && ordering.order.length > 0) {
+      for (const orderStr of ordering.order) {
+        const [field, direction] = orderStr.split(':');
+        order[field as keyof Trainer] = direction.toUpperCase() as
+          | 'ASC'
+          | 'DESC';
+      }
+    } else {
+      // Default order by createdAt descending
+      order.createdAt = 'DESC';
+    }
+
+    return order;
   }
 
   async findOne(id: string): Promise<Trainer> {
