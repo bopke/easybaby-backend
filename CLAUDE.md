@@ -44,12 +44,22 @@ npm run lint           # Run ESLint with auto-fix
 npm run format         # Format code with Prettier
 ```
 
+### Database Migrations
+```bash
+npm run migration:generate src/migrations/MigrationName  # Generate migration from entity changes
+npm run migration:create src/migrations/MigrationName    # Create empty migration
+npm run migration:run       # Run pending migrations
+npm run migration:revert    # Revert last migration
+npm run migration:show      # Show migration status
+```
+
 ## Architecture
 
 ### Module System
 - **AppModule** (src/app.module.ts): Root module that imports all feature modules
 - **AuthModule**: JWT authentication, login, registration
 - **UsersModule**: User management and CRUD operations
+- **TrainersModule**: Trainers catalog with public CRUD operations
 - **EmailModule**: Email sending via Brevo API
 - **HealthModule**: Health checks for the application and database
 
@@ -101,6 +111,7 @@ module/
 - `src/migrations/`: TypeORM database migrations
 - `src/auth/`: Authentication module (JWT, guards, strategies)
 - `src/users/`: User management module
+- `src/trainers/`: Trainers catalog module (public CRUD)
 - `src/email/`: Email service module
 - `src/health/`: Health check module
 - `docs/`: Project documentation
@@ -113,13 +124,23 @@ module/
 - **Data Source**: Configured in `src/data-source.ts` for CLI operations
 - **Entity Discovery**: Automatic via glob patterns (`**/*.entity.{ts,js}`)
 
+### Trainers Module
+- **Purpose**: Public catalog of certified trainers with full CRUD operations
+- **Authentication**: All endpoints are public (marked with `@Public()` decorator)
+- **Entity Fields**:
+  - Required: name, level, voivodeship, city, email
+  - Optional: site, phone, additionalOffer, expirationDate, notes
+  - Auto-generated: id (UUID), createdAt, updatedAt
+- **Endpoints**: Standard CRUD operations (GET /trainers, POST /trainers, PATCH /trainers/:id, DELETE /trainers/:id)
+- **CSV Import**: Initial data can be populated from `trainers.csv`
+
 ### Authentication & Authorization
 - **Strategy**: JWT tokens with Passport.js
 - **Token Structure**: Includes `sub` (user ID), `email`, `iss` (issuer), `aud` (audience)
 - **Token Expiration**: 1 hour (3600 seconds)
 - **Global Guard**: `JwtAuthGuard` protects all endpoints by default
-- **Public Routes**: Use `@Public()` decorator to bypass authentication
-- **Protected Routes**: Require `Authorization: Bearer <token>` header
+- **Public Routes**: Use `@Public()` decorator to bypass authentication (e.g., auth endpoints, trainers endpoints)
+- **Protected Routes**: Require `Authorization: Bearer <token>` header (e.g., users endpoints)
 - **Swagger Auth**: Bearer token authentication configured in Swagger UI
 
 ### Configuration

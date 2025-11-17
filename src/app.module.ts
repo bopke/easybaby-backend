@@ -12,7 +12,8 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
 import { AuthModule } from './auth/auth.module';
-import { JwtAuthGuard } from './auth/guards';
+import { JwtAuthGuard, RolesGuard } from './auth/guards';
+import { TrainersModule } from './trainers/trainers.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { JwtAuthGuard } from './auth/guards';
     UsersModule,
     EmailModule,
     AuthModule,
+    TrainersModule,
   ],
   controllers: [AppController],
   providers: [
@@ -44,6 +46,10 @@ import { JwtAuthGuard } from './auth/guards';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
     {
       provide: APP_GUARD,
