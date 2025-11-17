@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, ILike } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { TrainersService } from './trainers.service';
 import { Trainer } from '../entities';
@@ -125,7 +125,7 @@ describe('TrainersService', () => {
       const result = await service.findAll({ page: 1, limit: 10 }, filters);
 
       expect(findAndCountSpy).toHaveBeenCalledWith({
-        where: { name: Like('%Jan%') },
+        where: { name: ILike('%Jan%') },
         order: { createdAt: 'DESC' },
         skip: 0,
         take: 10,
@@ -141,7 +141,7 @@ describe('TrainersService', () => {
       const result = await service.findAll({ page: 1, limit: 10 }, filters);
 
       expect(findAndCountSpy).toHaveBeenCalledWith({
-        where: { city: Like('%Warszawa%') },
+        where: { city: ILike('%Warszawa%') },
         order: { createdAt: 'DESC' },
         skip: 0,
         take: 10,
@@ -162,8 +162,8 @@ describe('TrainersService', () => {
 
       expect(findAndCountSpy).toHaveBeenCalledWith({
         where: {
-          name: Like('%Jan%'),
-          voivodeship: Like('%Mazowieckie%'),
+          name: ILike('%Jan%'),
+          voivodeship: ILike('%Mazowieckie%'),
           isVerified: true,
         },
         order: { createdAt: 'DESC' },
@@ -188,11 +188,11 @@ describe('TrainersService', () => {
 
       expect(findAndCountSpy).toHaveBeenCalledWith({
         where: {
-          email: Like('%example.com%'),
-          site: Like('%example%'),
-          phone: Like('%+48%'),
-          additionalOffer: Like('%Individual%'),
-          notes: Like('%Available%'),
+          email: ILike('%example.com%'),
+          site: ILike('%example%'),
+          phone: ILike('%+48%'),
+          additionalOffer: ILike('%Individual%'),
+          notes: ILike('%Available%'),
         },
         order: { createdAt: 'DESC' },
         skip: 0,
@@ -291,7 +291,7 @@ describe('TrainersService', () => {
       );
 
       expect(findAndCountSpy).toHaveBeenCalledWith({
-        where: { city: Like('%Warszawa%') },
+        where: { city: ILike('%Warszawa%') },
         order: { name: 'ASC' },
         skip: 20,
         take: 20,

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, FindOptionsWhere, FindOptionsOrder } from 'typeorm';
+import { Repository, ILike, FindOptionsWhere, FindOptionsOrder } from 'typeorm';
 import { Trainer } from '../entities';
 import {
   CreateTrainerDto,
@@ -40,30 +40,30 @@ export class TrainersService {
   ): FindOptionsWhere<Trainer> {
     const where: FindOptionsWhere<Trainer> = {};
 
-    // String filters - use Like for partial matching
+    // String filters - use ILike for case-insensitive partial matching
     if (filters.name) {
-      where.name = Like(`%${filters.name}%`);
+      where.name = ILike(`%${filters.name}%`);
     }
     if (filters.voivodeship) {
-      where.voivodeship = Like(`%${filters.voivodeship}%`);
+      where.voivodeship = ILike(`%${filters.voivodeship}%`);
     }
     if (filters.city) {
-      where.city = Like(`%${filters.city}%`);
+      where.city = ILike(`%${filters.city}%`);
     }
     if (filters.email) {
-      where.email = Like(`%${filters.email}%`);
+      where.email = ILike(`%${filters.email}%`);
     }
     if (filters.site) {
-      where.site = Like(`%${filters.site}%`);
+      where.site = ILike(`%${filters.site}%`);
     }
     if (filters.phone) {
-      where.phone = Like(`%${filters.phone}%`);
+      where.phone = ILike(`%${filters.phone}%`);
     }
     if (filters.additionalOffer) {
-      where.additionalOffer = Like(`%${filters.additionalOffer}%`);
+      where.additionalOffer = ILike(`%${filters.additionalOffer}%`);
     }
     if (filters.notes) {
-      where.notes = Like(`%${filters.notes}%`);
+      where.notes = ILike(`%${filters.notes}%`);
     }
     if (filters.isVerified !== undefined) {
       where.isVerified = filters.isVerified;
