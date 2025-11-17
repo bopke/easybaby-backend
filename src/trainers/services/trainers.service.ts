@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Trainer } from '../entities';
 import { CreateTrainerDto, UpdateTrainerDto } from '../dtos';
+import { Paginated, Pagination } from '../../common/pagination';
 
 @Injectable()
 export class TrainersService {
@@ -11,8 +12,17 @@ export class TrainersService {
     private readonly trainersRepository: Repository<Trainer>,
   ) {}
 
-  async findAll(): Promise<Trainer[]> {
-    return this.trainersRepository.find();
+  // TODO: Parametrize ordering, filtering
+  async findAll(
+    pagination: Pagination = { page: 1, limit: 10 },
+  ): Promise<Paginated<Trainer>> {
+    const { page, limit } = pagination;
+    const [trainers, total] = await this.trainersRepository.findAndCount({
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data: trainers, total: total, page, limit };
   }
 
   async findOne(id: string): Promise<Trainer> {

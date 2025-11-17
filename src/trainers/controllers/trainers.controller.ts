@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,6 +27,7 @@ import {
   UpdateTrainerDto,
   TrainerResponseDto,
 } from '../dtos';
+import { Paginated } from '../../common/pagination';
 
 @ApiTags('Trainers')
 @Controller('trainers')
@@ -69,9 +71,15 @@ export class TrainersController {
     description: 'List of all trainers',
     type: [TrainerResponseDto],
   })
-  async findAll(): Promise<TrainerResponseDto[]> {
-    const trainers = await this.trainersService.findAll();
-    return TrainerResponseDto.fromEntities(trainers);
+  async findAll(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ): Promise<Paginated<TrainerResponseDto>> {
+    const trainers = await this.trainersService.findAll({ page, limit });
+    return {
+      ...trainers,
+      data: TrainerResponseDto.fromEntities(trainers.data),
+    };
   }
 
   @Get(':id')
