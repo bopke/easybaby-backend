@@ -17,6 +17,8 @@ import {
   ApiResponse,
   ApiParam,
   ApiBearerAuth,
+  ApiExtraModels,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { Public } from '../../auth/guards';
 import { Roles } from '../../auth/decorators';
@@ -32,6 +34,7 @@ import {
 import { Paginated } from '../../common/pagination';
 
 @ApiTags('Trainers')
+@ApiExtraModels(TrainerResponseDto)
 @Controller('trainers')
 export class TrainersController {
   constructor(private readonly trainersService: TrainersService) {}
@@ -74,7 +77,31 @@ export class TrainersController {
   @ApiResponse({
     status: 200,
     description: 'Paginated list of trainers matching the filters and ordering',
-    type: [TrainerResponseDto],
+    // TODO: Figure out how to use a reference to Paginated<TrainerResponseDto> here
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: getSchemaPath(TrainerResponseDto) },
+        },
+        total: {
+          type: 'number',
+          description: 'Total number of trainers matching the filters',
+          example: 100,
+        },
+        page: {
+          type: 'number',
+          description: 'Current page number',
+          example: 1,
+        },
+        limit: {
+          type: 'number',
+          description: 'Number of items per page',
+          example: 10,
+        },
+      },
+    },
   })
   async findAll(
     @Query('page') page: number = 1,
