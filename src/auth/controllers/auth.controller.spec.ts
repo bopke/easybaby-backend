@@ -60,13 +60,15 @@ describe('AuthController', () => {
         },
       };
 
-      jest.spyOn(authService, 'register').mockResolvedValue(newUserResponse);
+      const registerSpy = jest
+        .spyOn(authService, 'register')
+        .mockResolvedValue(newUserResponse);
 
       const result = await controller.register(registerDto);
 
       expect(result).toEqual(newUserResponse);
-      expect(authService.register).toHaveBeenCalledWith(registerDto);
-      expect(authService.register).toHaveBeenCalledTimes(1);
+      expect(registerSpy).toHaveBeenCalledWith(registerDto);
+      expect(registerSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should throw ConflictException when email already exists', async () => {
@@ -97,13 +99,15 @@ describe('AuthController', () => {
         password: 'password123',
       };
 
-      jest.spyOn(authService, 'login').mockResolvedValue(mockAuthResponse);
+      const loginSpy = jest
+        .spyOn(authService, 'login')
+        .mockResolvedValue(mockAuthResponse);
 
       const result = await controller.login(loginDto);
 
       expect(result).toEqual(mockAuthResponse);
-      expect(authService.login).toHaveBeenCalledWith(loginDto);
-      expect(authService.login).toHaveBeenCalledTimes(1);
+      expect(loginSpy).toHaveBeenCalledWith(loginDto);
+      expect(loginSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should throw UnauthorizedException when credentials are invalid', async () => {
@@ -132,11 +136,13 @@ describe('AuthController', () => {
 
       // In real scenario, this would be caught by class-validator pipe
       // Here we just verify the controller passes the DTO correctly
-      jest.spyOn(authService, 'login').mockResolvedValue(mockAuthResponse);
+      const loginSpy = jest
+        .spyOn(authService, 'login')
+        .mockResolvedValue(mockAuthResponse);
 
       await controller.login(loginDto);
 
-      expect(authService.login).toHaveBeenCalledWith(loginDto);
+      expect(loginSpy).toHaveBeenCalledWith(loginDto);
     });
   });
 });

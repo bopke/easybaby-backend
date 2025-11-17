@@ -77,7 +77,9 @@ describe('AuthService', () => {
 
       jest.spyOn(usersService, 'findByEmail').mockResolvedValue(mockUser);
       jest.spyOn(usersService, 'comparePasswords').mockResolvedValue(true);
-      jest.spyOn(jwtService, 'sign').mockReturnValue('mock.jwt.token');
+      const signSpy = jest
+        .spyOn(jwtService, 'sign')
+        .mockReturnValue('mock.jwt.token');
 
       const result = await service.login(loginDto);
 
@@ -88,7 +90,7 @@ describe('AuthService', () => {
       expect(result.user.email).toBe(mockUser.email);
       expect(result.user.id).toBe(mockUser.id);
 
-      expect(jwtService.sign).toHaveBeenCalledWith({
+      expect(signSpy).toHaveBeenCalledWith({
         sub: mockUser.id,
         email: mockUser.email,
         iss: 'workshops-api',
@@ -146,8 +148,12 @@ describe('AuthService', () => {
         updatedAt: new Date(),
       };
 
-      jest.spyOn(usersService, 'create').mockResolvedValue(newUser);
-      jest.spyOn(jwtService, 'sign').mockReturnValue('mock.jwt.token');
+      const createSpy = jest
+        .spyOn(usersService, 'create')
+        .mockResolvedValue(newUser);
+      const signSpy = jest
+        .spyOn(jwtService, 'sign')
+        .mockReturnValue('mock.jwt.token');
 
       const result = await service.register(registerDto);
 
@@ -159,11 +165,11 @@ describe('AuthService', () => {
       expect(result.user.id).toBe(newUser.id);
       expect(result.user.role).toBe(UserRole.NORMAL);
 
-      expect(usersService.create).toHaveBeenCalledWith({
+      expect(createSpy).toHaveBeenCalledWith({
         email: registerDto.email,
         password: registerDto.password,
       });
-      expect(jwtService.sign).toHaveBeenCalledWith({
+      expect(signSpy).toHaveBeenCalledWith({
         sub: newUser.id,
         email: newUser.email,
         iss: 'workshops-api',
@@ -194,8 +200,12 @@ describe('AuthService', () => {
 
   describe('validateUser', () => {
     it('should return user when credentials are valid', async () => {
-      jest.spyOn(usersService, 'findByEmail').mockResolvedValue(mockUser);
-      jest.spyOn(usersService, 'comparePasswords').mockResolvedValue(true);
+      const findByEmailSpy = jest
+        .spyOn(usersService, 'findByEmail')
+        .mockResolvedValue(mockUser);
+      const comparePasswordsSpy = jest
+        .spyOn(usersService, 'comparePasswords')
+        .mockResolvedValue(true);
 
       const result = await service.validateUser(
         'test@example.com',
@@ -203,8 +213,8 @@ describe('AuthService', () => {
       );
 
       expect(result).toEqual(mockUser);
-      expect(usersService.findByEmail).toHaveBeenCalledWith('test@example.com');
-      expect(usersService.comparePasswords).toHaveBeenCalledWith(
+      expect(findByEmailSpy).toHaveBeenCalledWith('test@example.com');
+      expect(comparePasswordsSpy).toHaveBeenCalledWith(
         'password123',
         mockUser.password,
       );

@@ -261,8 +261,12 @@ describe('UsersService', () => {
       };
 
       findOneSpy.mockResolvedValue(null); // No existing user
-      (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
-      jest.spyOn(repository, 'create').mockReturnValue(createdUser);
+      const hashSpy = (bcrypt.hash as jest.Mock).mockResolvedValue(
+        hashedPassword,
+      );
+      const createSpy = jest
+        .spyOn(repository, 'create')
+        .mockReturnValue(createdUser);
       saveSpy.mockResolvedValue(createdUser);
 
       const result = await service.create(createUserDto);
@@ -270,8 +274,8 @@ describe('UsersService', () => {
       expect(findOneSpy).toHaveBeenCalledWith({
         where: { email: createUserDto.email },
       });
-      expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
-      expect(repository.create).toHaveBeenCalledWith({
+      expect(hashSpy).toHaveBeenCalledWith('password123', 10);
+      expect(createSpy).toHaveBeenCalledWith({
         email: createUserDto.email,
         password: hashedPassword,
         role: UserRole.NORMAL,
@@ -288,6 +292,7 @@ describe('UsersService', () => {
       };
 
       findOneSpy.mockResolvedValue(mockUser);
+      const createSpy = jest.spyOn(repository, 'create');
 
       await expect(service.create(createUserDto)).rejects.toThrow(
         ConflictException,
@@ -296,7 +301,7 @@ describe('UsersService', () => {
         'User with this email already exists',
       );
 
-      expect(repository.create).not.toHaveBeenCalled();
+      expect(createSpy).not.toHaveBeenCalled();
       expect(saveSpy).not.toHaveBeenCalled();
     });
   });
