@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like, LessThan, MoreThan, Between } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { TrainersService } from './trainers.service';
 import { Trainer } from '../entities';
-import { CreateTrainerDto, UpdateTrainerDto } from '../dtos';
+import { CreateTrainerDto, UpdateTrainerDto, FilterTrainerDto } from '../dtos';
 import { mockTrainer } from '../mocks';
 
 describe('TrainersService', () => {
@@ -60,6 +60,7 @@ describe('TrainersService', () => {
       const result = await service.findAll({ page: 1, limit: 10 });
 
       expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: {},
         order: { createdAt: 'DESC' },
         skip: 0,
         take: 10,
@@ -77,7 +78,12 @@ describe('TrainersService', () => {
 
       const result = await service.findAll({ page: 1, limit: 10 });
 
-      expect(findAndCountSpy).toHaveBeenCalled();
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: {},
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
       expect(result).toEqual({
         data: [],
         total: 0,
@@ -93,6 +99,7 @@ describe('TrainersService', () => {
       const result = await service.findAll({ page: 3, limit: 20 });
 
       expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: {},
         order: { createdAt: 'DESC' },
         skip: 40,
         take: 20,
@@ -103,6 +110,211 @@ describe('TrainersService', () => {
         page: 3,
         limit: 20,
       });
+    });
+
+    it('should filter trainers by name', async () => {
+      const filters: FilterTrainerDto = { name: 'Jan' };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll({ page: 1, limit: 10 }, filters);
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: { name: Like('%Jan%') },
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should filter trainers by city', async () => {
+      const filters: FilterTrainerDto = { city: 'Warszawa' };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll({ page: 1, limit: 10 }, filters);
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: { city: Like('%Warszawa%') },
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should filter trainers by multiple fields', async () => {
+      const filters: FilterTrainerDto = {
+        name: 'Jan',
+        voivodeship: 'Mazowieckie',
+        level: 'Certyfikat',
+      };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll({ page: 1, limit: 10 }, filters);
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: {
+          name: Like('%Jan%'),
+          voivodeship: Like('%Mazowieckie%'),
+          level: Like('%Certyfikat%'),
+        },
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should filter trainers by expiration date before a given date', async () => {
+      const filters: FilterTrainerDto = { expirationDateBefore: '2025-12-31' };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll({ page: 1, limit: 10 }, filters);
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: { expirationDate: LessThan(new Date('2025-12-31')) },
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should filter trainers by expiration date after a given date', async () => {
+      const filters: FilterTrainerDto = { expirationDateAfter: '2025-01-01' };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll({ page: 1, limit: 10 }, filters);
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: { expirationDate: MoreThan(new Date('2025-01-01')) },
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should filter trainers by expiration date using "now" as before date', async () => {
+      const filters: FilterTrainerDto = { expirationDateBefore: 'now' };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const beforeCall = new Date();
+      await service.findAll({ page: 1, limit: 10 }, filters);
+      const afterCall = new Date();
+
+      expect(findAndCountSpy).toHaveBeenCalled();
+      const callArgs = findAndCountSpy.mock.calls[0] as unknown as Array<{
+        where: { expirationDate: { value: Date } };
+      }>;
+      const passedDate = callArgs[0].where.expirationDate.value;
+
+      // Check that the date used is between before and after the call
+      expect(passedDate.getTime()).toBeGreaterThanOrEqual(beforeCall.getTime());
+      expect(passedDate.getTime()).toBeLessThanOrEqual(afterCall.getTime());
+    });
+
+    it('should filter trainers by expiration date using "now" as after date', async () => {
+      const filters: FilterTrainerDto = { expirationDateAfter: 'NOW' };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const beforeCall = new Date();
+      await service.findAll({ page: 1, limit: 10 }, filters);
+      const afterCall = new Date();
+
+      expect(findAndCountSpy).toHaveBeenCalled();
+      const callArgs = findAndCountSpy.mock.calls[0] as unknown as Array<{
+        where: { expirationDate: { value: Date } };
+      }>;
+      const passedDate = callArgs[0].where.expirationDate.value;
+
+      // Check that the date used is between before and after the call
+      expect(passedDate.getTime()).toBeGreaterThanOrEqual(beforeCall.getTime());
+      expect(passedDate.getTime()).toBeLessThanOrEqual(afterCall.getTime());
+    });
+
+    it('should filter trainers with date range using both before and after', async () => {
+      const filters: FilterTrainerDto = {
+        expirationDateAfter: '2025-01-01',
+        expirationDateBefore: '2025-12-31',
+      };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll({ page: 1, limit: 10 }, filters);
+
+      // When both filters are provided, Between is used for proper range query
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: {
+          expirationDate: Between(
+            new Date('2025-01-01'),
+            new Date('2025-12-31'),
+          ),
+        },
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
+    });
+
+    it('should filter trainers with date range using "now" in both filters', async () => {
+      const filters: FilterTrainerDto = {
+        expirationDateAfter: 'now',
+        expirationDateBefore: '2025-12-31',
+      };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const beforeCall = new Date();
+      await service.findAll({ page: 1, limit: 10 }, filters);
+      const afterCall = new Date();
+
+      expect(findAndCountSpy).toHaveBeenCalled();
+      const callArgs = findAndCountSpy.mock.calls[0] as unknown as Array<{
+        where: { expirationDate: { value: [Date, Date] } };
+      }>;
+      const [afterDate, beforeDate] = callArgs[0].where.expirationDate.value;
+
+      // Check that "now" was properly converted to current date
+      expect(afterDate.getTime()).toBeGreaterThanOrEqual(beforeCall.getTime());
+      expect(afterDate.getTime()).toBeLessThanOrEqual(afterCall.getTime());
+      expect(beforeDate).toEqual(new Date('2025-12-31'));
+    });
+
+    it('should filter trainers by all string fields', async () => {
+      const filters: FilterTrainerDto = {
+        email: 'example.com',
+        site: 'example',
+        phone: '+48',
+        additionalOffer: 'Individual',
+        notes: 'Available',
+      };
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 1]);
+
+      const result = await service.findAll({ page: 1, limit: 10 }, filters);
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        where: {
+          email: Like('%example.com%'),
+          site: Like('%example%'),
+          phone: Like('%+48%'),
+          additionalOffer: Like('%Individual%'),
+          notes: Like('%Available%'),
+        },
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result.data).toEqual(trainers);
     });
   });
 

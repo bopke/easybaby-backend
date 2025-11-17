@@ -6,6 +6,7 @@ import {
   CreateTrainerDto,
   UpdateTrainerDto,
   TrainerResponseDto,
+  FilterTrainerDto,
 } from '../dtos';
 import { mockTrainer } from '../mocks';
 
@@ -90,7 +91,7 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10);
+      const result = await controller.findAll(1, 10, {});
 
       expect(result.data).toHaveLength(2);
       expect(result.data[0]).toBeInstanceOf(TrainerResponseDto);
@@ -98,7 +99,7 @@ describe('TrainersController', () => {
       expect(result.total).toBe(2);
       expect(result.page).toBe(1);
       expect(result.limit).toBe(10);
-      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 });
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 }, {});
       expect(findAllSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -114,7 +115,7 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10);
+      const result = await controller.findAll(1, 10, {});
 
       expect(result).toEqual({
         data: [],
@@ -122,7 +123,7 @@ describe('TrainersController', () => {
         page: 1,
         limit: 10,
       });
-      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 });
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 }, {});
     });
 
     it('should use default pagination parameters when not provided', async () => {
@@ -141,7 +142,10 @@ describe('TrainersController', () => {
 
       expect(result.page).toBe(1);
       expect(result.limit).toBe(10);
-      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 });
+      expect(findAllSpy).toHaveBeenCalledWith(
+        { page: 1, limit: 10 },
+        undefined,
+      );
     });
 
     it('should handle custom pagination parameters', async () => {
@@ -156,11 +160,131 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(3, 20);
+      const result = await controller.findAll(3, 20, {});
 
       expect(result.page).toBe(3);
       expect(result.limit).toBe(20);
-      expect(findAllSpy).toHaveBeenCalledWith({ page: 3, limit: 20 });
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 3, limit: 20 }, {});
+    });
+
+    it('should filter trainers by name', async () => {
+      const filters: FilterTrainerDto = { name: 'Jan' };
+      const paginatedResponse = {
+        data: [mockTrainer],
+        total: 1,
+        page: 1,
+        limit: 10,
+      };
+
+      const findAllSpy = jest
+        .spyOn(trainersService, 'findAll')
+        .mockResolvedValue(paginatedResponse);
+
+      const result = await controller.findAll(1, 10, filters);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 }, filters);
+    });
+
+    it('should filter trainers by multiple fields', async () => {
+      const filters: FilterTrainerDto = {
+        city: 'Warszawa',
+        voivodeship: 'Mazowieckie',
+      };
+      const paginatedResponse = {
+        data: [mockTrainer],
+        total: 1,
+        page: 1,
+        limit: 10,
+      };
+
+      const findAllSpy = jest
+        .spyOn(trainersService, 'findAll')
+        .mockResolvedValue(paginatedResponse);
+
+      const result = await controller.findAll(1, 10, filters);
+
+      expect(result.data).toHaveLength(1);
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 }, filters);
+    });
+
+    it('should combine filtering and pagination', async () => {
+      const filters: FilterTrainerDto = { level: 'Certyfikat' };
+      const paginatedResponse = {
+        data: [mockTrainer],
+        total: 50,
+        page: 2,
+        limit: 20,
+      };
+
+      const findAllSpy = jest
+        .spyOn(trainersService, 'findAll')
+        .mockResolvedValue(paginatedResponse);
+
+      const result = await controller.findAll(2, 20, filters);
+
+      expect(result.page).toBe(2);
+      expect(result.limit).toBe(20);
+      expect(result.total).toBe(50);
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 2, limit: 20 }, filters);
+    });
+
+    it('should filter trainers by expiration date before', async () => {
+      const filters: FilterTrainerDto = { expirationDateBefore: '2025-12-31' };
+      const paginatedResponse = {
+        data: [mockTrainer],
+        total: 1,
+        page: 1,
+        limit: 10,
+      };
+
+      const findAllSpy = jest
+        .spyOn(trainersService, 'findAll')
+        .mockResolvedValue(paginatedResponse);
+
+      const result = await controller.findAll(1, 10, filters);
+
+      expect(result.data).toHaveLength(1);
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 }, filters);
+    });
+
+    it('should filter trainers by expiration date after', async () => {
+      const filters: FilterTrainerDto = { expirationDateAfter: '2025-01-01' };
+      const paginatedResponse = {
+        data: [mockTrainer],
+        total: 1,
+        page: 1,
+        limit: 10,
+      };
+
+      const findAllSpy = jest
+        .spyOn(trainersService, 'findAll')
+        .mockResolvedValue(paginatedResponse);
+
+      const result = await controller.findAll(1, 10, filters);
+
+      expect(result.data).toHaveLength(1);
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 }, filters);
+    });
+
+    it('should filter trainers using "now" as date value', async () => {
+      const filters: FilterTrainerDto = { expirationDateBefore: 'now' };
+      const paginatedResponse = {
+        data: [mockTrainer],
+        total: 1,
+        page: 1,
+        limit: 10,
+      };
+
+      const findAllSpy = jest
+        .spyOn(trainersService, 'findAll')
+        .mockResolvedValue(paginatedResponse);
+
+      const result = await controller.findAll(1, 10, filters);
+
+      expect(result.data).toHaveLength(1);
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 }, filters);
     });
   });
 

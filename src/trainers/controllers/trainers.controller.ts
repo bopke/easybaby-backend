@@ -26,6 +26,7 @@ import {
   CreateTrainerDto,
   UpdateTrainerDto,
   TrainerResponseDto,
+  FilterTrainerDto,
 } from '../dtos';
 import { Paginated } from '../../common/pagination';
 
@@ -65,17 +66,23 @@ export class TrainersController {
 
   @Get()
   @Public()
-  @ApiOperation({ summary: 'Get all trainers' })
+  @ApiOperation({
+    summary: 'Get all trainers with optional filtering and pagination',
+  })
   @ApiResponse({
     status: 200,
-    description: 'List of all trainers',
+    description: 'Paginated list of trainers matching the filters',
     type: [TrainerResponseDto],
   })
   async findAll(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query() filters: FilterTrainerDto,
   ): Promise<Paginated<TrainerResponseDto>> {
-    const trainers = await this.trainersService.findAll({ page, limit });
+    const trainers = await this.trainersService.findAll(
+      { page, limit },
+      filters,
+    );
     return {
       ...trainers,
       data: TrainerResponseDto.fromEntities(trainers.data),
