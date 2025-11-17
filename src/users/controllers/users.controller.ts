@@ -9,11 +9,18 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { UsersService } from '../services/users.service';
 import { UpdateUserDto, UserResponseDto } from '../dtos';
 
 @ApiTags('Users')
+@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -24,6 +31,10 @@ export class UsersController {
     status: 200,
     description: 'List of all users',
     type: [UserResponseDto],
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Valid JWT token required',
   })
   async findAll(): Promise<UserResponseDto[]> {
     const users = await this.usersService.findAll();
@@ -45,6 +56,10 @@ export class UsersController {
   @ApiResponse({
     status: 400,
     description: 'Invalid UUID format',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Valid JWT token required',
   })
   @ApiResponse({
     status: 404,
@@ -72,6 +87,10 @@ export class UsersController {
   @ApiResponse({
     status: 400,
     description: 'Invalid input data or UUID format',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Valid JWT token required',
   })
   @ApiResponse({
     status: 404,
@@ -104,6 +123,10 @@ export class UsersController {
   @ApiResponse({
     status: 400,
     description: 'Invalid UUID format',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Valid JWT token required',
   })
   @ApiResponse({
     status: 404,

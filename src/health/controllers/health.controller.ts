@@ -6,8 +6,10 @@ import {
 } from '@nestjs/terminus';
 import { ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
+import { Public } from '../../auth/guards';
 
 @ApiTags('Health')
+@Public()
 @SkipThrottle()
 @Controller('health')
 export class HealthController {

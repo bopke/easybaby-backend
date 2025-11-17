@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { User } from '../entities/user.entity';
 import { UserRole } from '../entities/enums';
-import { UpdateUserDto } from '../dtos';
+import { CreateUserDto, UpdateUserDto } from '../dtos';
 
 jest.mock('bcrypt');
 
@@ -240,6 +240,64 @@ describe('UsersService', () => {
 
       // Should only be called once (to find the user)
       expect(findOneSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('create', () => {
+    it('should create a new user with hashed password', async () => {
+      const createUserDto: CreateUserDto = {
+        email: 'newuser@example.com',
+        password: 'password123',
+      };
+
+      const hashedPassword = 'hashedPassword123';
+      const createdUser: User = {
+        id: 'new-user-id',
+        email: createUserDto.email,
+        password: hashedPassword,
+        role: UserRole.NORMAL,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      findOneSpy.mockResolvedValue(null); // No existing user
+      (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
+      jest.spyOn(repository, 'create').mockReturnValue(createdUser);
+      saveSpy.mockResolvedValue(createdUser);
+
+      const result = await service.create(createUserDto);
+
+      expect(findOneSpy).toHaveBeenCalledWith({
+        where: { email: createUserDto.email },
+      });
+      expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
+      expect(repository.create).toHaveBeenCalledWith({
+        email: createUserDto.email,
+        password: hashedPassword,
+        role: UserRole.NORMAL,
+      });
+      expect(saveSpy).toHaveBeenCalledWith(createdUser);
+      expect(result).toEqual(createdUser);
+      expect(result.role).toBe(UserRole.NORMAL);
+    });
+
+    it('should throw ConflictException if user already exists', async () => {
+      const createUserDto: CreateUserDto = {
+        email: 'existing@example.com',
+        password: 'password123',
+      };
+
+      findOneSpy.mockResolvedValue(mockUser);
+
+      await expect(service.create(createUserDto)).rejects.toThrow(
+        ConflictException,
+      );
+      await expect(service.create(createUserDto)).rejects.toThrow(
+        'User with this email already exists',
+      );
+
+      expect(repository.create).not.toHaveBeenCalled();
+      expect(saveSpy).not.toHaveBeenCalled();
     });
   });
 

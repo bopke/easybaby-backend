@@ -13,6 +13,8 @@ export default () => ({
   },
   jwt: {
     secret: process.env.JWT_SECRET,
+    issuer: process.env.JWT_ISSUER || 'workshops-api',
+    audience: process.env.JWT_AUDIENCE || 'workshops-api',
   },
   email: {
     brevoApiKey: process.env.BREVO_API_KEY,

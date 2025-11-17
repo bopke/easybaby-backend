@@ -11,6 +11,8 @@ import { getTypeOrmConfig } from './config/typeorm.config';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/guards';
 
 @Module({
   imports: [
@@ -34,10 +36,15 @@ import { EmailModule } from './email/email.module';
     HealthModule,
     UsersModule,
     EmailModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
