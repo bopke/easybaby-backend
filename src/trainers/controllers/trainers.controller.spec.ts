@@ -6,8 +6,7 @@ import {
   CreateTrainerDto,
   UpdateTrainerDto,
   TrainerResponseDto,
-  FilterTrainerDto,
-  OrderTrainerDto,
+  TrainerQueryDto,
 } from '../dtos';
 import { mockTrainer } from '../mocks';
 
@@ -92,11 +91,14 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10, {}, {});
+      const query: TrainerQueryDto = { page: 1, limit: 10 };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.data).toHaveLength(2);
-      expect(result.data[0]).toBeInstanceOf(TrainerResponseDto);
-      expect(result.data[1]).toBeInstanceOf(TrainerResponseDto);
+      // Data is now plain objects after serialization, only public fields visible
+      expect(result.data[0]).toHaveProperty('id');
+      expect(result.data[0]).toHaveProperty('name');
+      expect(result.data[0]).not.toHaveProperty('createdAt'); // createdAt not visible to public
       expect(result.total).toBe(2);
       expect(result.page).toBe(1);
       expect(result.limit).toBe(10);
@@ -116,7 +118,8 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10, {}, {});
+      const query: TrainerQueryDto = { page: 1, limit: 10 };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result).toEqual({
         data: [],
@@ -139,20 +142,12 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-      );
+      const query: TrainerQueryDto = {};
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.page).toBe(1);
       expect(result.limit).toBe(10);
-      expect(findAllSpy).toHaveBeenCalledWith(
-        { page: 1, limit: 10 },
-        undefined,
-        undefined,
-      );
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 }, {}, {});
     });
 
     it('should handle custom pagination parameters', async () => {
@@ -167,7 +162,8 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(3, 20, {}, {});
+      const query: TrainerQueryDto = { page: 3, limit: 20 };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.page).toBe(3);
       expect(result.limit).toBe(20);
@@ -175,7 +171,6 @@ describe('TrainersController', () => {
     });
 
     it('should filter trainers by name', async () => {
-      const filters: FilterTrainerDto = { name: 'Jan' };
       const paginatedResponse = {
         data: [mockTrainer],
         total: 1,
@@ -187,22 +182,19 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10, filters, undefined);
+      const query: TrainerQueryDto = { page: 1, limit: 10, name: 'Jan' };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.data).toHaveLength(1);
       expect(result.total).toBe(1);
       expect(findAllSpy).toHaveBeenCalledWith(
         { page: 1, limit: 10 },
-        filters,
-        undefined,
+        { name: 'Jan' },
+        {},
       );
     });
 
     it('should filter trainers by multiple fields', async () => {
-      const filters: FilterTrainerDto = {
-        city: 'Warszawa',
-        voivodeship: 'Mazowieckie',
-      };
       const paginatedResponse = {
         data: [mockTrainer],
         total: 1,
@@ -214,18 +206,23 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10, filters, undefined);
+      const query: TrainerQueryDto = {
+        page: 1,
+        limit: 10,
+        city: 'Warszawa',
+        voivodeship: 'Mazowieckie',
+      };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.data).toHaveLength(1);
       expect(findAllSpy).toHaveBeenCalledWith(
         { page: 1, limit: 10 },
-        filters,
-        undefined,
+        { city: 'Warszawa', voivodeship: 'Mazowieckie' },
+        {},
       );
     });
 
     it('should combine filtering and pagination', async () => {
-      const filters: FilterTrainerDto = { level: 'Certyfikat' };
       const paginatedResponse = {
         data: [mockTrainer],
         total: 50,
@@ -237,20 +234,24 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(2, 20, filters, undefined);
+      const query: TrainerQueryDto = {
+        page: 2,
+        limit: 20,
+        level: 'Certyfikat',
+      };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.page).toBe(2);
       expect(result.limit).toBe(20);
       expect(result.total).toBe(50);
       expect(findAllSpy).toHaveBeenCalledWith(
         { page: 2, limit: 20 },
-        filters,
-        undefined,
+        { level: 'Certyfikat' },
+        {},
       );
     });
 
     it('should filter trainers by expiration date before', async () => {
-      const filters: FilterTrainerDto = { expirationDateBefore: '2025-12-31' };
       const paginatedResponse = {
         data: [mockTrainer],
         total: 1,
@@ -262,18 +263,22 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10, filters, undefined);
+      const query: TrainerQueryDto = {
+        page: 1,
+        limit: 10,
+        expirationDateBefore: '2025-12-31',
+      };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.data).toHaveLength(1);
       expect(findAllSpy).toHaveBeenCalledWith(
         { page: 1, limit: 10 },
-        filters,
-        undefined,
+        { expirationDateBefore: '2025-12-31' },
+        {},
       );
     });
 
     it('should filter trainers by expiration date after', async () => {
-      const filters: FilterTrainerDto = { expirationDateAfter: '2025-01-01' };
       const paginatedResponse = {
         data: [mockTrainer],
         total: 1,
@@ -285,18 +290,22 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10, filters, undefined);
+      const query: TrainerQueryDto = {
+        page: 1,
+        limit: 10,
+        expirationDateAfter: '2025-01-01',
+      };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.data).toHaveLength(1);
       expect(findAllSpy).toHaveBeenCalledWith(
         { page: 1, limit: 10 },
-        filters,
-        undefined,
+        { expirationDateAfter: '2025-01-01' },
+        {},
       );
     });
 
     it('should filter trainers using "now" as date value', async () => {
-      const filters: FilterTrainerDto = { expirationDateBefore: 'now' };
       const paginatedResponse = {
         data: [mockTrainer],
         total: 1,
@@ -308,18 +317,22 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10, filters, undefined);
+      const query: TrainerQueryDto = {
+        page: 1,
+        limit: 10,
+        expirationDateBefore: 'now',
+      };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.data).toHaveLength(1);
       expect(findAllSpy).toHaveBeenCalledWith(
         { page: 1, limit: 10 },
-        filters,
-        undefined,
+        { expirationDateBefore: 'now' },
+        {},
       );
     });
 
     it('should order trainers by single field', async () => {
-      const ordering: OrderTrainerDto = { order: ['name:asc'] };
       const paginatedResponse = {
         data: [mockTrainer],
         total: 1,
@@ -331,20 +344,22 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10, {}, ordering);
+      const query: TrainerQueryDto = {
+        page: 1,
+        limit: 10,
+        order: ['name:asc'],
+      };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.data).toHaveLength(1);
       expect(findAllSpy).toHaveBeenCalledWith(
         { page: 1, limit: 10 },
         {},
-        ordering,
+        { order: ['name:asc'] },
       );
     });
 
     it('should order trainers by multiple fields', async () => {
-      const ordering: OrderTrainerDto = {
-        order: ['city:asc', 'name:desc'],
-      };
       const paginatedResponse = {
         data: [mockTrainer],
         total: 1,
@@ -356,19 +371,22 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(1, 10, {}, ordering);
+      const query: TrainerQueryDto = {
+        page: 1,
+        limit: 10,
+        order: ['city:asc', 'name:desc'],
+      };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.data).toHaveLength(1);
       expect(findAllSpy).toHaveBeenCalledWith(
         { page: 1, limit: 10 },
         {},
-        ordering,
+        { order: ['city:asc', 'name:desc'] },
       );
     });
 
     it('should combine filtering, ordering, and pagination', async () => {
-      const filters: FilterTrainerDto = { city: 'Warszawa' };
-      const ordering: OrderTrainerDto = { order: ['name:asc'] };
       const paginatedResponse = {
         data: [mockTrainer],
         total: 1,
@@ -380,15 +398,21 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findAll')
         .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll(2, 20, filters, ordering);
+      const query: TrainerQueryDto = {
+        page: 2,
+        limit: 20,
+        city: 'Warszawa',
+        order: ['name:asc'],
+      };
+      const result = await controller.findAll(query, { user: undefined });
 
       expect(result.data).toHaveLength(1);
       expect(result.page).toBe(2);
       expect(result.limit).toBe(20);
       expect(findAllSpy).toHaveBeenCalledWith(
         { page: 2, limit: 20 },
-        filters,
-        ordering,
+        { city: 'Warszawa' },
+        { order: ['name:asc'] },
       );
     });
   });
@@ -399,9 +423,14 @@ describe('TrainersController', () => {
         .spyOn(trainersService, 'findOne')
         .mockResolvedValue(mockTrainer);
 
-      const result = await controller.findOne(mockTrainer.id);
+      const result = (await controller.findOne(mockTrainer.id, {
+        user: undefined,
+      })) as Record<string, any>;
 
-      expect(result).toEqual(mockTrainerResponse);
+      // Result is now a plain object with only public fields
+      expect(result).toHaveProperty('id');
+      expect(result).toHaveProperty('name');
+      expect(result).not.toHaveProperty('createdAt'); // createdAt not visible to public
       expect(findOneSpy).toHaveBeenCalledWith(mockTrainer.id);
       expect(findOneSpy).toHaveBeenCalledTimes(1);
     });

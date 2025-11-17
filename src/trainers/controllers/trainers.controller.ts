@@ -10,6 +10,7 @@ import {
   HttpStatus,
   ParseUUIDPipe,
   Query,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,18 +21,26 @@ import {
   ApiExtraModels,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { Public } from '../../auth/guards';
-import { Roles } from '../../auth/decorators';
+import { Roles, OptionalAuth } from '../../auth/decorators';
 import { UserRole } from '../../users/entities/enums';
 import { TrainersService } from '../services';
 import {
   CreateTrainerDto,
   UpdateTrainerDto,
   TrainerResponseDto,
-  FilterTrainerDto,
-  OrderTrainerDto,
+  TrainerQueryDto,
 } from '../dtos';
 import { Paginated } from '../../common/pagination';
+
+interface JwtPayload {
+  sub: string;
+  email: string;
+  role: UserRole;
+}
+
+interface RequestWithUser {
+  user?: JwtPayload;
+}
 
 @ApiTags('Trainers')
 @ApiExtraModels(TrainerResponseDto)
@@ -69,15 +78,20 @@ export class TrainersController {
   }
 
   @Get()
-  @Public()
+  @OptionalAuth()
   @ApiOperation({
     summary:
-      'Get all trainers with optional filtering, ordering, and pagination',
+      'Get all trainers with optional filtering, ordering, and pagination. ' +
+      'Returns different fields based on authentication: ' +
+      'public (unauthenticated) sees basic info, ' +
+      'authenticated users see contact details, ' +
+      'admins see all fields.',
   })
   @ApiResponse({
     status: 200,
-    description: 'Paginated list of trainers matching the filters and ordering',
-    // TODO: Figure out how to use a reference to Paginated<TrainerResponseDto> here
+    description:
+      'Paginated list of trainers matching the filters and ordering. ' +
+      'Fields returned depend on user role.',
     schema: {
       type: 'object',
       properties: {
@@ -103,26 +117,46 @@ export class TrainersController {
       },
     },
   })
+  @ApiBearerAuth()
   async findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-    @Query() filters: FilterTrainerDto,
-    @Query() ordering: OrderTrainerDto,
-  ): Promise<Paginated<TrainerResponseDto>> {
+    @Query() query: TrainerQueryDto,
+    @Request() req: RequestWithUser,
+  ): Promise<Paginated<any>> {
+    const { page = 1, limit = 10, order, ...filters } = query;
+
     const trainers = await this.trainersService.findAll(
       { page, limit },
       filters,
-      ordering,
+      { order },
     );
+
+    // Determine serialization group based on user role
+    const group = this.getSerializationGroup(req.user);
+    console.log(group);
+    console.log(req.user);
+    console.log(req);
     return {
       ...trainers,
-      data: TrainerResponseDto.fromEntities(trainers.data),
+      data: TrainerResponseDto.fromEntities(trainers.data, [group]),
     };
   }
 
+  private getSerializationGroup(user?: JwtPayload): string {
+    if (!user) {
+      return 'public';
+    }
+    if (user.role === UserRole.ADMIN) {
+      return 'admin';
+    }
+    return 'user';
+  }
+
   @Get(':id')
-  @Public()
-  @ApiOperation({ summary: 'Get a trainer by ID' })
+  @OptionalAuth()
+  @ApiOperation({
+    summary:
+      'Get a trainer by ID. Returns different fields based on authentication.',
+  })
   @ApiParam({
     name: 'id',
     description: 'Trainer UUID',
@@ -130,7 +164,7 @@ export class TrainersController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Trainer found',
+    description: 'Trainer found. Fields returned depend on user role.',
     type: TrainerResponseDto,
   })
   @ApiResponse({
@@ -141,11 +175,14 @@ export class TrainersController {
     status: 404,
     description: 'Trainer not found',
   })
+  @ApiBearerAuth()
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<TrainerResponseDto> {
+    @Request() req: RequestWithUser,
+  ): Promise<any> {
     const trainer = await this.trainersService.findOne(id);
-    return TrainerResponseDto.fromEntity(trainer);
+    const group = this.getSerializationGroup(req.user);
+    return TrainerResponseDto.fromEntity(trainer, [group]);
   }
 
   @Patch(':id')
