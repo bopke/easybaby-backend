@@ -132,9 +132,7 @@ export class TrainersController {
 
     // Determine serialization group based on user role
     const group = this.getSerializationGroup(req.user);
-    console.log(group);
-    console.log(req.user);
-    console.log(req);
+
     return {
       ...trainers,
       data: TrainerResponseDto.fromEntities(trainers.data, [group]),

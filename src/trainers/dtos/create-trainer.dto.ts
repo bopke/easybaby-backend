@@ -4,7 +4,7 @@ import {
   IsNotEmpty,
   IsEmail,
   IsOptional,
-  IsDateString,
+  IsBoolean,
 } from 'class-validator';
 
 export class CreateTrainerDto {
@@ -15,14 +15,6 @@ export class CreateTrainerDto {
   @IsString()
   @IsNotEmpty()
   name: string;
-
-  @ApiProperty({
-    description: 'Certification level',
-    example: 'Certyfikat',
-  })
-  @IsString()
-  @IsNotEmpty()
-  level: string;
 
   @ApiProperty({
     description: 'Voivodeship (Polish administrative region)',
@@ -76,13 +68,12 @@ export class CreateTrainerDto {
   additionalOffer?: string;
 
   @ApiProperty({
-    description: 'Certification expiration date',
-    example: '2025-12-31',
-    required: false,
+    description: 'Verification status of the trainer',
+    example: false,
   })
-  @IsDateString()
-  @IsOptional()
-  expirationDate?: string;
+  @IsBoolean()
+  @IsNotEmpty()
+  isVerified: boolean;
 
   @ApiProperty({
     description: 'Additional notes',

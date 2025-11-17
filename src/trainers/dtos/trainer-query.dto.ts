@@ -46,14 +46,6 @@ export class TrainerQueryDto {
   name?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter by certification level (partial match)',
-    example: 'Certyfikat',
-  })
-  @IsOptional()
-  @IsString()
-  level?: string;
-
-  @ApiPropertyOptional({
     description: 'Filter by voivodeship (partial match)',
     example: 'Mazowieckie',
   })
@@ -102,22 +94,17 @@ export class TrainerQueryDto {
   additionalOffer?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Filter trainers with expiration date before this date. Use "now" for current date.',
-    example: '2025-12-31',
+    description: 'Filter by verification status',
+    example: true,
   })
   @IsOptional()
-  @IsString()
-  expirationDateBefore?: string;
-
-  @ApiPropertyOptional({
-    description:
-      'Filter trainers with expiration date after this date. Use "now" for current date.',
-    example: '2025-01-01',
+  @Transform(({ value }: { value: string | boolean }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    if (typeof value === 'boolean') return value;
+    return undefined;
   })
-  @IsOptional()
-  @IsString()
-  expirationDateAfter?: string;
+  isVerified?: boolean;
 
   @ApiPropertyOptional({
     description: 'Filter by notes (partial match)',
@@ -131,8 +118,8 @@ export class TrainerQueryDto {
   @ApiPropertyOptional({
     description:
       'Order trainers by field(s) in format "field:direction". ' +
-      'Valid fields: name, level, voivodeship, city, email, site, phone, ' +
-      'additionalOffer, expirationDate, notes, createdAt, updatedAt. ' +
+      'Valid fields: name, voivodeship, city, email, site, phone, ' +
+      'additionalOffer, isVerified, notes, createdAt, updatedAt. ' +
       'Valid directions: asc, desc. ' +
       'Multiple values can be provided for multi-level sorting.',
     example: ['name:asc', 'createdAt:desc'],
@@ -149,7 +136,7 @@ export class TrainerQueryDto {
   @IsArray()
   @IsString({ each: true })
   @Matches(
-    /^(name|level|voivodeship|city|email|site|phone|additionalOffer|expirationDate|notes|createdAt|updatedAt):(asc|desc)$/i,
+    /^(name|voivodeship|city|email|site|phone|additionalOffer|isVerified|notes|createdAt|updatedAt):(asc|desc)$/i,
     {
       each: true,
       message:

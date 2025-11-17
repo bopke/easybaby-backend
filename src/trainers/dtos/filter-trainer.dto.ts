@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsBoolean } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class FilterTrainerDto {
@@ -9,14 +9,6 @@ export class FilterTrainerDto {
   @IsOptional()
   @IsString()
   name?: string;
-
-  @ApiPropertyOptional({
-    description: 'Filter by certification level (partial match)',
-    example: 'Certyfikat',
-  })
-  @IsOptional()
-  @IsString()
-  level?: string;
 
   @ApiPropertyOptional({
     description: 'Filter by voivodeship (partial match)',
@@ -67,22 +59,12 @@ export class FilterTrainerDto {
   additionalOffer?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Filter trainers with expiration date before this date. Use "now" for current date.',
-    example: '2025-12-31',
+    description: 'Filter by verification status',
+    example: true,
   })
   @IsOptional()
-  @IsString()
-  expirationDateBefore?: string;
-
-  @ApiPropertyOptional({
-    description:
-      'Filter trainers with expiration date after this date. Use "now" for current date.',
-    example: '2025-01-01',
-  })
-  @IsOptional()
-  @IsString()
-  expirationDateAfter?: string;
+  @IsBoolean()
+  isVerified?: boolean;
 
   @ApiPropertyOptional({
     description: 'Filter by notes (partial match)',

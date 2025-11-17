@@ -7,16 +7,12 @@ import {
 } from 'typeorm';
 
 @Entity('trainers')
-// TODO: Discuss what really is nullable and what information should be stored
 export class Trainer {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
   name: string;
-
-  @Column()
-  level: string;
 
   @Column()
   voivodeship: string;
@@ -36,9 +32,10 @@ export class Trainer {
   @Column({ nullable: true })
   additionalOffer?: string;
 
-  @Column({ nullable: true })
-  expirationDate?: Date;
+  @Column()
+  isVerified: boolean;
 
+  //TODO: PHOTO
   @Column({ nullable: true })
   notes?: string;
 

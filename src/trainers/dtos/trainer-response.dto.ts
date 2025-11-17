@@ -18,13 +18,6 @@ export class TrainerResponseDto {
   name: string;
 
   @ApiProperty({
-    description: 'Certification level',
-    example: 'Certyfikat',
-  })
-  @Expose({ groups: ['public', 'user', 'admin'] })
-  level: string;
-
-  @ApiProperty({
     description: 'Voivodeship (Polish administrative region)',
     example: 'Mazowieckie',
   })
@@ -70,12 +63,11 @@ export class TrainerResponseDto {
   additionalOffer?: string;
 
   @ApiProperty({
-    description: 'Certification expiration date (admin only)',
-    example: '2025-12-31',
-    nullable: true,
+    description: 'Verification status of the trainer (admin only)',
+    example: false,
   })
   @Expose({ groups: ['admin'] })
-  expirationDate?: Date;
+  isVerified: boolean;
 
   @ApiProperty({
     description: 'Additional notes (admin only)',
@@ -102,14 +94,13 @@ export class TrainerResponseDto {
   constructor(trainer: Trainer) {
     this.id = trainer.id;
     this.name = trainer.name;
-    this.level = trainer.level;
     this.voivodeship = trainer.voivodeship;
     this.city = trainer.city;
     this.email = trainer.email;
     this.site = trainer.site;
     this.phone = trainer.phone;
     this.additionalOffer = trainer.additionalOffer;
-    this.expirationDate = trainer.expirationDate;
+    this.isVerified = trainer.isVerified;
     this.notes = trainer.notes;
     this.createdAt = trainer.createdAt;
     this.updatedAt = trainer.updatedAt;

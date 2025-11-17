@@ -1,14 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  Like,
-  FindOptionsWhere,
-  FindOptionsOrder,
-  LessThan,
-  MoreThan,
-  Between,
-} from 'typeorm';
+import { Repository, Like, FindOptionsWhere, FindOptionsOrder } from 'typeorm';
 import { Trainer } from '../entities';
 import {
   CreateTrainerDto,
@@ -52,9 +44,6 @@ export class TrainersService {
     if (filters.name) {
       where.name = Like(`%${filters.name}%`);
     }
-    if (filters.level) {
-      where.level = Like(`%${filters.level}%`);
-    }
     if (filters.voivodeship) {
       where.voivodeship = Like(`%${filters.voivodeship}%`);
     }
@@ -76,36 +65,8 @@ export class TrainersService {
     if (filters.notes) {
       where.notes = Like(`%${filters.notes}%`);
     }
-
-    // Date filters - before/after with "now" support
-    const hasBeforeFilter = !!filters.expirationDateBefore;
-    const hasAfterFilter = !!filters.expirationDateAfter;
-
-    if (hasBeforeFilter && hasAfterFilter) {
-      // Both filters provided - use Between for range query
-      const afterDate =
-        filters.expirationDateAfter!.toLowerCase() === 'now'
-          ? new Date()
-          : new Date(filters.expirationDateAfter!);
-      const beforeDate =
-        filters.expirationDateBefore!.toLowerCase() === 'now'
-          ? new Date()
-          : new Date(filters.expirationDateBefore!);
-      where.expirationDate = Between(afterDate, beforeDate);
-    } else if (hasBeforeFilter) {
-      // Only before filter - use LessThan
-      const date =
-        filters.expirationDateBefore!.toLowerCase() === 'now'
-          ? new Date()
-          : new Date(filters.expirationDateBefore!);
-      where.expirationDate = LessThan(date);
-    } else if (hasAfterFilter) {
-      // Only after filter - use MoreThan
-      const date =
-        filters.expirationDateAfter!.toLowerCase() === 'now'
-          ? new Date()
-          : new Date(filters.expirationDateAfter!);
-      where.expirationDate = MoreThan(date);
+    if (filters.isVerified !== undefined) {
+      where.isVerified = filters.isVerified;
     }
 
     return where;
@@ -142,13 +103,7 @@ export class TrainersService {
   }
 
   async create(createTrainerDto: CreateTrainerDto): Promise<Trainer> {
-    const { expirationDate, ...rest } = createTrainerDto;
-
-    const trainer = this.trainersRepository.create({
-      ...rest,
-      expirationDate: expirationDate ? new Date(expirationDate) : undefined,
-    });
-
+    const trainer = this.trainersRepository.create(createTrainerDto);
     return this.trainersRepository.save(trainer);
   }
 
@@ -157,15 +112,7 @@ export class TrainersService {
     updateTrainerDto: UpdateTrainerDto,
   ): Promise<Trainer> {
     const trainer = await this.findOne(id);
-
-    const { expirationDate, ...rest } = updateTrainerDto;
-
-    Object.assign(trainer, rest);
-
-    if (expirationDate !== undefined) {
-      trainer.expirationDate = new Date(expirationDate);
-    }
-
+    Object.assign(trainer, updateTrainerDto);
     return this.trainersRepository.save(trainer);
   }
 

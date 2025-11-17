@@ -50,14 +50,13 @@ describe('TrainersController', () => {
     it('should create a new trainer and return response DTO', async () => {
       const createTrainerDto: CreateTrainerDto = {
         name: 'Jan Kowalski',
-        level: 'Certyfikat',
         voivodeship: 'Mazowieckie',
         city: 'Warszawa',
         email: 'jan.kowalski@example.com',
         site: 'https://example.com',
         phone: '+48 123 456 789',
         additionalOffer: 'Individual training sessions',
-        expirationDate: '2025-12-31',
+        isVerified: false,
         notes: 'Available on weekends',
       };
 
@@ -237,7 +236,7 @@ describe('TrainersController', () => {
       const query: TrainerQueryDto = {
         page: 2,
         limit: 20,
-        level: 'Certyfikat',
+        isVerified: true,
       };
       const result = await controller.findAll(query, { user: undefined });
 
@@ -246,88 +245,7 @@ describe('TrainersController', () => {
       expect(result.total).toBe(50);
       expect(findAllSpy).toHaveBeenCalledWith(
         { page: 2, limit: 20 },
-        { level: 'Certyfikat' },
-        {},
-      );
-    });
-
-    it('should filter trainers by expiration date before', async () => {
-      const paginatedResponse = {
-        data: [mockTrainer],
-        total: 1,
-        page: 1,
-        limit: 10,
-      };
-
-      const findAllSpy = jest
-        .spyOn(trainersService, 'findAll')
-        .mockResolvedValue(paginatedResponse);
-
-      const query: TrainerQueryDto = {
-        page: 1,
-        limit: 10,
-        expirationDateBefore: '2025-12-31',
-      };
-      const result = await controller.findAll(query, { user: undefined });
-
-      expect(result.data).toHaveLength(1);
-      expect(findAllSpy).toHaveBeenCalledWith(
-        { page: 1, limit: 10 },
-        { expirationDateBefore: '2025-12-31' },
-        {},
-      );
-    });
-
-    it('should filter trainers by expiration date after', async () => {
-      const paginatedResponse = {
-        data: [mockTrainer],
-        total: 1,
-        page: 1,
-        limit: 10,
-      };
-
-      const findAllSpy = jest
-        .spyOn(trainersService, 'findAll')
-        .mockResolvedValue(paginatedResponse);
-
-      const query: TrainerQueryDto = {
-        page: 1,
-        limit: 10,
-        expirationDateAfter: '2025-01-01',
-      };
-      const result = await controller.findAll(query, { user: undefined });
-
-      expect(result.data).toHaveLength(1);
-      expect(findAllSpy).toHaveBeenCalledWith(
-        { page: 1, limit: 10 },
-        { expirationDateAfter: '2025-01-01' },
-        {},
-      );
-    });
-
-    it('should filter trainers using "now" as date value', async () => {
-      const paginatedResponse = {
-        data: [mockTrainer],
-        total: 1,
-        page: 1,
-        limit: 10,
-      };
-
-      const findAllSpy = jest
-        .spyOn(trainersService, 'findAll')
-        .mockResolvedValue(paginatedResponse);
-
-      const query: TrainerQueryDto = {
-        page: 1,
-        limit: 10,
-        expirationDateBefore: 'now',
-      };
-      const result = await controller.findAll(query, { user: undefined });
-
-      expect(result.data).toHaveLength(1);
-      expect(findAllSpy).toHaveBeenCalledWith(
-        { page: 1, limit: 10 },
-        { expirationDateBefore: 'now' },
+        { isVerified: true },
         {},
       );
     });
