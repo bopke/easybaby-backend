@@ -73,33 +73,94 @@ describe('TrainersController', () => {
   });
 
   describe('findAll', () => {
-    it('should return an array of trainer response DTOs', async () => {
+    it('should return a paginated response of trainer DTOs', async () => {
       const trainers = [
         mockTrainer,
         { ...mockTrainer, id: '2', name: 'Anna Nowak' },
       ];
 
+      const paginatedResponse = {
+        data: trainers,
+        total: 2,
+        page: 1,
+        limit: 10,
+      };
+
       const findAllSpy = jest
         .spyOn(trainersService, 'findAll')
-        .mockResolvedValue(trainers);
+        .mockResolvedValue(paginatedResponse);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll(1, 10);
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toBeInstanceOf(TrainerResponseDto);
-      expect(findAllSpy).toHaveBeenCalled();
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0]).toBeInstanceOf(TrainerResponseDto);
+      expect(result.data[1]).toBeInstanceOf(TrainerResponseDto);
+      expect(result.total).toBe(2);
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(10);
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 });
       expect(findAllSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('should return an empty array if no trainers exist', async () => {
+    it('should return an empty paginated response if no trainers exist', async () => {
+      const paginatedResponse = {
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+      };
+
       const findAllSpy = jest
         .spyOn(trainersService, 'findAll')
-        .mockResolvedValue([]);
+        .mockResolvedValue(paginatedResponse);
+
+      const result = await controller.findAll(1, 10);
+
+      expect(result).toEqual({
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+      });
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 });
+    });
+
+    it('should use default pagination parameters when not provided', async () => {
+      const paginatedResponse = {
+        data: [mockTrainer],
+        total: 1,
+        page: 1,
+        limit: 10,
+      };
+
+      const findAllSpy = jest
+        .spyOn(trainersService, 'findAll')
+        .mockResolvedValue(paginatedResponse);
 
       const result = await controller.findAll();
 
-      expect(result).toEqual([]);
-      expect(findAllSpy).toHaveBeenCalled();
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(10);
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 1, limit: 10 });
+    });
+
+    it('should handle custom pagination parameters', async () => {
+      const paginatedResponse = {
+        data: [mockTrainer],
+        total: 50,
+        page: 3,
+        limit: 20,
+      };
+
+      const findAllSpy = jest
+        .spyOn(trainersService, 'findAll')
+        .mockResolvedValue(paginatedResponse);
+
+      const result = await controller.findAll(3, 20);
+
+      expect(result.page).toBe(3);
+      expect(result.limit).toBe(20);
+      expect(findAllSpy).toHaveBeenCalledWith({ page: 3, limit: 20 });
     });
   });
 

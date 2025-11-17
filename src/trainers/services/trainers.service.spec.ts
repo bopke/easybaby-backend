@@ -11,7 +11,7 @@ describe('TrainersService', () => {
   let service: TrainersService;
   let repository: Repository<Trainer>;
   let findOneSpy: jest.SpyInstance;
-  let findSpy: jest.SpyInstance;
+  let findAndCountSpy: jest.SpyInstance;
   let saveSpy: jest.SpyInstance;
   let removeSpy: jest.SpyInstance;
 
@@ -23,7 +23,7 @@ describe('TrainersService', () => {
           provide: getRepositoryToken(Trainer),
           useValue: {
             findOne: jest.fn(),
-            find: jest.fn(),
+            findAndCount: jest.fn(),
             create: jest.fn(),
             save: jest.fn(),
             remove: jest.fn(),
@@ -36,7 +36,7 @@ describe('TrainersService', () => {
     repository = module.get<Repository<Trainer>>(getRepositoryToken(Trainer));
 
     findOneSpy = jest.spyOn(repository, 'findOne');
-    findSpy = jest.spyOn(repository, 'find');
+    findAndCountSpy = jest.spyOn(repository, 'findAndCount');
     saveSpy = jest.spyOn(repository, 'save');
     removeSpy = jest.spyOn(repository, 'remove');
   });
@@ -50,26 +50,59 @@ describe('TrainersService', () => {
   });
 
   describe('findAll', () => {
-    it('should return an array of trainers', async () => {
+    it('should return a paginated response of trainers', async () => {
       const trainers = [
         mockTrainer,
         { ...mockTrainer, id: '2', name: 'Anna Nowak' },
       ];
-      findSpy.mockResolvedValue(trainers);
+      findAndCountSpy.mockResolvedValue([trainers, 2]);
 
-      const result = await service.findAll();
+      const result = await service.findAll({ page: 1, limit: 10 });
 
-      expect(findSpy).toHaveBeenCalled();
-      expect(result).toEqual(trainers);
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        order: { createdAt: 'DESC' },
+        skip: 0,
+        take: 10,
+      });
+      expect(result).toEqual({
+        data: trainers,
+        total: 2,
+        page: 1,
+        limit: 10,
+      });
     });
 
-    it('should return an empty array if no trainers exist', async () => {
-      findSpy.mockResolvedValue([]);
+    it('should return an empty paginated response if no trainers exist', async () => {
+      findAndCountSpy.mockResolvedValue([[], 0]);
 
-      const result = await service.findAll();
+      const result = await service.findAll({ page: 1, limit: 10 });
 
-      expect(findSpy).toHaveBeenCalled();
-      expect(result).toEqual([]);
+      expect(findAndCountSpy).toHaveBeenCalled();
+      expect(result).toEqual({
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+      });
+    });
+
+    it('should handle custom pagination parameters', async () => {
+      const trainers = [mockTrainer];
+      findAndCountSpy.mockResolvedValue([trainers, 50]);
+
+      const result = await service.findAll({ page: 3, limit: 20 });
+
+      expect(findAndCountSpy).toHaveBeenCalledWith({
+        order: { createdAt: 'DESC' },
+        skip: 40,
+        take: 20,
+      });
+      expect(result).toEqual({
+        data: trainers,
+        total: 50,
+        page: 3,
+        limit: 20,
+      });
     });
   });
 
