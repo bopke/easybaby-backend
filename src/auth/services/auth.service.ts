@@ -56,7 +56,7 @@ export class AuthService {
     );
   }
 
-  async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+  async register(registerDto: RegisterDto): Promise<{ message: string }> {
     const user = await this.usersService.create({
       email: registerDto.email,
       password: registerDto.password,
@@ -69,23 +69,15 @@ export class AuthService {
       await this.usersService.remove(user.id);
       throw error;
     }
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      iss: this.configService.get<string>('jwt.issuer'),
-      aud: this.configService.get<string>('jwt.audience'),
-    };
 
-    const accessToken = this.jwtService.sign(payload);
-    const expiresIn = 3600; // 1 hour
-
-    this.logger.log(`User ${user.email} registered successfully`);
-
-    return new AuthResponseDto(
-      accessToken,
-      UserResponseDto.fromEntity(user),
-      expiresIn,
+    this.logger.log(
+      `User ${user.email} registered successfully. Verification email sent.`,
     );
+
+    return {
+      message:
+        'Registration successful. Please check your email to verify your account.',
+    };
   }
 
   async validateUser(email: string, password: string) {

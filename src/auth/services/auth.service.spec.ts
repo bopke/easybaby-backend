@@ -157,7 +157,7 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('should register a new user and return auth response with token', async () => {
+    it('should register a new user and return success message', async () => {
       const registerDto: RegisterDto = {
         email: 'newuser@example.com',
         password: 'password123',
@@ -180,19 +180,13 @@ describe('AuthService', () => {
       const sendEmailSpy = jest
         .spyOn(emailService, 'sendRegistrationEmail')
         .mockResolvedValue();
-      const signSpy = jest
-        .spyOn(jwtService, 'sign')
-        .mockReturnValue('mock.jwt.token');
 
       const result = await service.register(registerDto);
 
-      expect(result).toHaveProperty('accessToken', 'mock.jwt.token');
-      expect(result).toHaveProperty('tokenType', 'Bearer');
-      expect(result).toHaveProperty('expiresIn', 3600);
-      expect(result).toHaveProperty('user');
-      expect(result.user.email).toBe(newUser.email);
-      expect(result.user.id).toBe(newUser.id);
-      expect(result.user.role).toBe(UserRole.NORMAL);
+      expect(result).toEqual({
+        message:
+          'Registration successful. Please check your email to verify your account.',
+      });
 
       expect(createSpy).toHaveBeenCalledWith({
         email: registerDto.email,
@@ -200,12 +194,6 @@ describe('AuthService', () => {
       });
       expect(sendEmailSpy).toHaveBeenCalledWith(newUser);
       expect(sendEmailSpy).toHaveBeenCalledTimes(1);
-      expect(signSpy).toHaveBeenCalledWith({
-        sub: newUser.id,
-        email: newUser.email,
-        iss: 'workshops-api',
-        aud: 'workshops-api',
-      });
     });
 
     it('should throw ConflictException when email already exists', async () => {

@@ -21,8 +21,17 @@ export class AuthController {
   @ApiOperation({ summary: 'User registration' })
   @ApiResponse({
     status: 201,
-    description: 'Registration successful',
-    type: AuthResponseDto,
+    description: 'Registration successful. Verification email sent.',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example:
+            'Registration successful. Please check your email to verify your account.',
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 400,
@@ -33,7 +42,9 @@ export class AuthController {
     description: 'User with this email already exists',
   })
   // TODO: CAPTCHA FOR REGISTERS
-  async register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
+  async register(
+    @Body() registerDto: RegisterDto,
+  ): Promise<{ message: string }> {
     return this.authService.register(registerDto);
   }
 

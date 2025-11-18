@@ -59,27 +59,24 @@ describe('AuthController', () => {
   });
 
   describe('register', () => {
-    it('should register a new user and return auth response', async () => {
+    it('should register a new user and return success message', async () => {
       const registerDto: RegisterDto = {
         email: 'newuser@example.com',
         password: 'password123',
       };
 
-      const newUserResponse: AuthResponseDto = {
-        ...mockAuthResponse,
-        user: {
-          ...mockAuthResponse.user,
-          email: registerDto.email,
-        },
+      const expectedResponse = {
+        message:
+          'Registration successful. Please check your email to verify your account.',
       };
 
       const registerSpy = jest
         .spyOn(authService, 'register')
-        .mockResolvedValue(newUserResponse);
+        .mockResolvedValue(expectedResponse);
 
       const result = await controller.register(registerDto);
 
-      expect(result).toEqual(newUserResponse);
+      expect(result).toEqual(expectedResponse);
       expect(registerSpy).toHaveBeenCalledWith(registerDto);
       expect(registerSpy).toHaveBeenCalledTimes(1);
     });
