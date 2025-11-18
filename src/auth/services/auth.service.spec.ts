@@ -1,11 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../../users/services/users.service';
 import { EmailService } from '../../email/services/email.service';
-import { LoginDto, RegisterDto } from '../dtos';
+import { LoginDto, RegisterDto, ResendVerificationEmailDto } from '../dtos';
 import { User } from '../../users/entities/user.entity';
 import { UserRole } from '../../users/entities/enums';
 
@@ -37,6 +42,7 @@ describe('AuthService', () => {
             comparePasswords: jest.fn(),
             create: jest.fn(),
             remove: jest.fn(),
+            regenerateVerificationCode: jest.fn(),
           },
         },
         {
@@ -292,6 +298,49 @@ describe('AuthService', () => {
       );
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('resendVerificationEmail', () => {
+    const resendDto: ResendVerificationEmailDto = {
+      email: 'test@example.com',
+    };
+
+    it('should resend verification email with new code', async () => {
+      const findByEmailSpy = jest
+        .spyOn(usersService, 'findByEmail')
+        .mockResolvedValue(mockUser);
+
+      const result = await service.resendVerificationEmail(resendDto);
+
+      expect(result).toEqual({
+        message: 'Verification email has been sent successfully',
+      });
+      expect(findByEmailSpy).toHaveBeenCalledWith(resendDto.email);
+    });
+
+    it('should throw NotFoundException when user is not found', async () => {
+      jest.spyOn(usersService, 'findByEmail').mockResolvedValue(null);
+
+      await expect(service.resendVerificationEmail(resendDto)).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(service.resendVerificationEmail(resendDto)).rejects.toThrow(
+        'User with this email not found',
+      );
+    });
+
+    it('should throw BadRequestException when email is already verified', async () => {
+      const verifiedUser = { ...mockUser, isEmailVerified: true };
+
+      jest.spyOn(usersService, 'findByEmail').mockResolvedValue(verifiedUser);
+
+      await expect(service.resendVerificationEmail(resendDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.resendVerificationEmail(resendDto)).rejects.toThrow(
+        'Email is already verified',
+      );
     });
   });
 });

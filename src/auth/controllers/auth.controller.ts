@@ -1,7 +1,12 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
-import { LoginDto, RegisterDto, AuthResponseDto } from '../dtos';
+import {
+  LoginDto,
+  RegisterDto,
+  AuthResponseDto,
+  ResendVerificationEmailDto,
+} from '../dtos';
 import { Public } from '../guards';
 
 @ApiTags('Authentication')
@@ -46,5 +51,36 @@ export class AuthController {
   })
   async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(loginDto);
+  }
+
+  @Public()
+  @Post('resend-verification-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend email verification' })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification email sent successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Verification email has been sent successfully',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Email is already verified',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User with this email not found',
+  })
+  async resendVerificationEmail(
+    @Body() dto: ResendVerificationEmailDto,
+  ): Promise<{ message: string }> {
+    return this.authService.resendVerificationEmail(dto);
   }
 }

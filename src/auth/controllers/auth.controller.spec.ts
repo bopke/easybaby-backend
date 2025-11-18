@@ -1,8 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from '../services/auth.service';
-import { LoginDto, RegisterDto, AuthResponseDto } from '../dtos';
+import {
+  LoginDto,
+  RegisterDto,
+  AuthResponseDto,
+  ResendVerificationEmailDto,
+} from '../dtos';
 import { UserResponseDto } from '../../users/dtos';
 import { UserRole } from '../../users/entities/enums';
 
@@ -32,6 +42,7 @@ describe('AuthController', () => {
           useValue: {
             login: jest.fn(),
             register: jest.fn(),
+            resendVerificationEmail: jest.fn(),
           },
         },
       ],
@@ -143,6 +154,66 @@ describe('AuthController', () => {
       await controller.login(loginDto);
 
       expect(loginSpy).toHaveBeenCalledWith(loginDto);
+    });
+  });
+
+  describe('resendVerificationEmail', () => {
+    it('should resend verification email and return success message', async () => {
+      const resendDto: ResendVerificationEmailDto = {
+        email: 'test@example.com',
+      };
+
+      const expectedResponse = {
+        message: 'Verification email has been sent successfully',
+      };
+
+      const resendSpy = jest
+        .spyOn(authService, 'resendVerificationEmail')
+        .mockResolvedValue(expectedResponse);
+
+      const result = await controller.resendVerificationEmail(resendDto);
+
+      expect(result).toEqual(expectedResponse);
+      expect(resendSpy).toHaveBeenCalledWith(resendDto);
+      expect(resendSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException when user is not found', async () => {
+      const resendDto: ResendVerificationEmailDto = {
+        email: 'nonexistent@example.com',
+      };
+
+      jest
+        .spyOn(authService, 'resendVerificationEmail')
+        .mockRejectedValue(
+          new NotFoundException('User with this email not found'),
+        );
+
+      await expect(
+        controller.resendVerificationEmail(resendDto),
+      ).rejects.toThrow(NotFoundException);
+      await expect(
+        controller.resendVerificationEmail(resendDto),
+      ).rejects.toThrow('User with this email not found');
+    });
+
+    it('should throw BadRequestException when email is already verified', async () => {
+      const resendDto: ResendVerificationEmailDto = {
+        email: 'verified@example.com',
+      };
+
+      jest
+        .spyOn(authService, 'resendVerificationEmail')
+        .mockRejectedValue(
+          new BadRequestException('Email is already verified'),
+        );
+
+      await expect(
+        controller.resendVerificationEmail(resendDto),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.resendVerificationEmail(resendDto),
+      ).rejects.toThrow('Email is already verified');
     });
   });
 });

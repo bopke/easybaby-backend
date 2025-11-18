@@ -1,8 +1,19 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../../users/services/users.service';
-import { LoginDto, RegisterDto, AuthResponseDto } from '../dtos';
+import {
+  LoginDto,
+  RegisterDto,
+  AuthResponseDto,
+  ResendVerificationEmailDto,
+} from '../dtos';
 import { UserResponseDto } from '../../users/dtos';
 import { JwtPayload } from '../strategies/jwt.strategy';
 import { EmailService } from '../../email/services/email.service';
@@ -93,5 +104,25 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async resendVerificationEmail(
+    dto: ResendVerificationEmailDto,
+  ): Promise<{ message: string }> {
+    const user = await this.usersService.findByEmail(dto.email);
+
+    if (!user) {
+      throw new NotFoundException('User with this email not found');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    await this.emailService.sendRegistrationEmail(user);
+
+    this.logger.log(`Verification email resent to ${user.email} with new code`);
+
+    return { message: 'Verification email has been sent successfully' };
   }
 }
