@@ -28,9 +28,9 @@ src/
 │   │   ├── constants/                            # Constants and data
 │   │   │   ├── [constant_name].constants.ts      # Constant files
 │   │   │   └── index.ts                          # Export all constants
-│   │   └── utils/                                # Entity utilities
-│   │       ├── [utility_name].utils.ts           # Utility files
-│   │       └── index.ts                          # Export all utilities
+│   ├── utils/                                    # Utilities
+│   │   ├── [utility_name].utils.ts               # Utility files
+│   │   └── index.ts                              # Export all utilities
 │   ├── mocks/                                    # Testing mocks
 │   │   ├── [resource].mock.ts                    # Main entity mock
 │   │   ├── [resource]_[related].mock.ts          # Related entity mocks

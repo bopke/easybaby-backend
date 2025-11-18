@@ -6,6 +6,10 @@ import {
   TransactionalEmailsApiApiKeys,
 } from '@getbrevo/brevo';
 import { SendEmailDto } from '../dtos';
+import { User } from '../../users/entities/user.entity';
+import path from 'node:path';
+import * as fs from 'node:fs';
+import Handlebars from 'handlebars';
 
 @Injectable()
 export class EmailService {
@@ -79,5 +83,37 @@ export class EmailService {
       );
       throw error;
     }
+  }
+
+  async sendTemplateMail(
+    templateName: string,
+    to: string,
+    subject: string,
+    context: any,
+  ) {
+    // TODO: Cache templates
+    const templatePath = path.join(
+      `${__dirname}/../`,
+      'templates',
+      `${templateName}.hbs`,
+    );
+    const templateRaw = fs.readFileSync(templatePath, 'utf8');
+    const compiled = Handlebars.compile(templateRaw);
+    const html = compiled(context);
+
+    return this.sendEmail({
+      to: to,
+      subject: subject,
+      htmlContent: html,
+    });
+  }
+
+  async sendRegistrationEmail(user: User): Promise<void> {
+    return this.sendTemplateMail(
+      'registration',
+      user.email,
+      'Welcome to the app!',
+      { user },
+    );
   }
 }

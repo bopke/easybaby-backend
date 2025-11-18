@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../../users/services/users.service';
+import { EmailService } from '../../email/services/email.service';
 import { LoginDto, RegisterDto } from '../dtos';
 import { User } from '../../users/entities/user.entity';
 import { UserRole } from '../../users/entities/enums';
@@ -12,12 +13,15 @@ describe('AuthService', () => {
   let service: AuthService;
   let usersService: UsersService;
   let jwtService: JwtService;
+  let emailService: EmailService;
 
   const mockUser: User = {
     id: '123e4567-e89b-12d3-a456-426614174000',
     email: 'test@example.com',
     password: 'hashedPassword123',
     role: UserRole.NORMAL,
+    emailVerificationCode: 'ABC123',
+    isEmailVerified: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -32,6 +36,7 @@ describe('AuthService', () => {
             findByEmail: jest.fn(),
             comparePasswords: jest.fn(),
             create: jest.fn(),
+            remove: jest.fn(),
           },
         },
         {
@@ -52,12 +57,19 @@ describe('AuthService', () => {
             }),
           },
         },
+        {
+          provide: EmailService,
+          useValue: {
+            sendRegistrationEmail: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     usersService = module.get<UsersService>(UsersService);
     jwtService = module.get<JwtService>(JwtService);
+    emailService = module.get<EmailService>(EmailService);
   });
 
   afterEach(() => {
@@ -144,6 +156,8 @@ describe('AuthService', () => {
         email: registerDto.email,
         password: 'hashedPassword123',
         role: UserRole.NORMAL,
+        emailVerificationCode: 'XYZ789',
+        isEmailVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -151,6 +165,9 @@ describe('AuthService', () => {
       const createSpy = jest
         .spyOn(usersService, 'create')
         .mockResolvedValue(newUser);
+      const sendEmailSpy = jest
+        .spyOn(emailService, 'sendRegistrationEmail')
+        .mockResolvedValue();
       const signSpy = jest
         .spyOn(jwtService, 'sign')
         .mockReturnValue('mock.jwt.token');
@@ -169,6 +186,8 @@ describe('AuthService', () => {
         email: registerDto.email,
         password: registerDto.password,
       });
+      expect(sendEmailSpy).toHaveBeenCalledWith(newUser);
+      expect(sendEmailSpy).toHaveBeenCalledTimes(1);
       expect(signSpy).toHaveBeenCalledWith({
         sub: newUser.id,
         email: newUser.email,
@@ -195,6 +214,38 @@ describe('AuthService', () => {
       await expect(service.register(registerDto)).rejects.toThrow(
         'User with this email already exists',
       );
+    });
+
+    it('should fail registration when email sending fails', async () => {
+      const registerDto: RegisterDto = {
+        email: 'newuser@example.com',
+        password: 'password123',
+      };
+
+      const newUser: User = {
+        id: 'new-user-id',
+        email: registerDto.email,
+        password: 'hashedPassword123',
+        role: UserRole.NORMAL,
+        emailVerificationCode: 'DEF456',
+        isEmailVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      jest.spyOn(usersService, 'create').mockResolvedValue(newUser);
+      const removeSpy = jest
+        .spyOn(usersService, 'remove')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(emailService, 'sendRegistrationEmail')
+        .mockRejectedValue(new Error('Failed to send email'));
+
+      await expect(service.register(registerDto)).rejects.toThrow(
+        'Failed to send email',
+      );
+
+      expect(removeSpy).toHaveBeenCalledWith(newUser.id);
     });
   });
 

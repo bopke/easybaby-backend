@@ -19,6 +19,8 @@ describe('UsersController', () => {
     email: 'test@example.com',
     password: 'hashedPassword123',
     role: UserRole.NORMAL,
+    emailVerificationCode: 'ABC123',
+    isEmailVerified: false,
     createdAt: new Date('2024-01-15T10:30:00.000Z'),
     updatedAt: new Date('2024-01-15T10:30:00.000Z'),
   };

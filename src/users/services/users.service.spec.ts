@@ -23,6 +23,8 @@ describe('UsersService', () => {
     email: 'test@example.com',
     password: 'hashedPassword123',
     role: UserRole.NORMAL,
+    emailVerificationCode: 'ABC123',
+    isEmailVerified: false,
     createdAt: new Date('2024-01-15T10:30:00.000Z'),
     updatedAt: new Date('2024-01-15T10:30:00.000Z'),
   };
@@ -256,6 +258,8 @@ describe('UsersService', () => {
         email: createUserDto.email,
         password: hashedPassword,
         role: UserRole.NORMAL,
+        emailVerificationCode: 'ABC123',
+        isEmailVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -275,11 +279,18 @@ describe('UsersService', () => {
         where: { email: createUserDto.email },
       });
       expect(hashSpy).toHaveBeenCalledWith('password123', 10);
-      expect(createSpy).toHaveBeenCalledWith({
-        email: createUserDto.email,
-        password: hashedPassword,
-        role: UserRole.NORMAL,
-      });
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: createUserDto.email,
+          password: hashedPassword,
+          role: UserRole.NORMAL,
+          isEmailVerified: false,
+        }),
+      );
+      const createCallArgs = createSpy.mock.calls[0][0];
+      expect(createCallArgs.emailVerificationCode).toBeTruthy();
+      expect(typeof createCallArgs.emailVerificationCode).toBe('string');
+      expect(createCallArgs.emailVerificationCode).toHaveLength(6);
       expect(saveSpy).toHaveBeenCalledWith(createdUser);
       expect(result).toEqual(createdUser);
       expect(result.role).toBe(UserRole.NORMAL);

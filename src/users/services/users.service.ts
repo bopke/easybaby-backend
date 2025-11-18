@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../entities/user.entity';
 import { CreateUserDto, UpdateUserDto } from '../dtos';
 import { UserRole } from '../entities/enums';
+import { generateVerificationCode } from '../utils';
 
 @Injectable()
 export class UsersService {
@@ -52,6 +53,8 @@ export class UsersService {
       email: createUserDto.email,
       password: hashedPassword,
       role: UserRole.NORMAL,
+      emailVerificationCode: generateVerificationCode(),
+      isEmailVerified: false,
     });
 
     return this.usersRepository.save(user);

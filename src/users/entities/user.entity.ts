@@ -28,6 +28,12 @@ export class User {
   })
   role: UserRole;
 
+  @Column()
+  emailVerificationCode: string;
+
+  @Column({ default: false })
+  isEmailVerified: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

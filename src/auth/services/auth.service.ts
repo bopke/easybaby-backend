@@ -5,6 +5,7 @@ import { UsersService } from '../../users/services/users.service';
 import { LoginDto, RegisterDto, AuthResponseDto } from '../dtos';
 import { UserResponseDto } from '../../users/dtos';
 import { JwtPayload } from '../strategies/jwt.strategy';
+import { EmailService } from '../../email/services/email.service';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +15,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
@@ -48,6 +50,13 @@ export class AuthService {
       password: registerDto.password,
     });
 
+    try {
+      await this.emailService.sendRegistrationEmail(user);
+    } catch (error) {
+      // Do not create users with unsent email
+      await this.usersService.remove(user.id);
+      throw error;
+    }
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
