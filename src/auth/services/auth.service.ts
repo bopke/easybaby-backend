@@ -13,6 +13,7 @@ import {
   RegisterDto,
   AuthResponseDto,
   ResendVerificationEmailDto,
+  VerifyEmailDto,
 } from '../dtos';
 import { UserResponseDto } from '../../users/dtos';
 import { JwtPayload } from '../strategies/jwt.strategy';
@@ -124,5 +125,22 @@ export class AuthService {
     this.logger.log(`Verification email resent to ${user.email} with new code`);
 
     return { message: 'Verification email has been sent successfully' };
+  }
+
+  async verifyEmail(dto: VerifyEmailDto): Promise<{ message: string }> {
+    const user = await this.usersService.verifyEmail(
+      dto.email,
+      dto.verificationCode,
+    );
+
+    if (!user) {
+      throw new BadRequestException(
+        'Invalid verification code or user not found',
+      );
+    }
+
+    this.logger.log(`Email verified successfully for ${user.email}`);
+
+    return { message: 'Email verified successfully' };
   }
 }

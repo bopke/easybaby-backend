@@ -10,7 +10,12 @@ import {
 import { AuthService } from './auth.service';
 import { UsersService } from '../../users/services/users.service';
 import { EmailService } from '../../email/services/email.service';
-import { LoginDto, RegisterDto, ResendVerificationEmailDto } from '../dtos';
+import {
+  LoginDto,
+  RegisterDto,
+  ResendVerificationEmailDto,
+  VerifyEmailDto,
+} from '../dtos';
 import { User } from '../../users/entities/user.entity';
 import { UserRole } from '../../users/entities/enums';
 
@@ -43,6 +48,7 @@ describe('AuthService', () => {
             create: jest.fn(),
             remove: jest.fn(),
             regenerateVerificationCode: jest.fn(),
+            verifyEmail: jest.fn(),
           },
         },
         {
@@ -340,6 +346,58 @@ describe('AuthService', () => {
       );
       await expect(service.resendVerificationEmail(resendDto)).rejects.toThrow(
         'Email is already verified',
+      );
+    });
+  });
+
+  describe('verifyEmail', () => {
+    const verifyDto: VerifyEmailDto = {
+      email: 'test@example.com',
+      verificationCode: 'ABC123',
+    };
+
+    it('should verify email successfully when code is valid', async () => {
+      const verifiedUser = { ...mockUser, isEmailVerified: true };
+
+      const verifyEmailSpy = jest
+        .spyOn(usersService, 'verifyEmail')
+        .mockResolvedValue(verifiedUser);
+
+      const result = await service.verifyEmail(verifyDto);
+
+      expect(result).toEqual({
+        message: 'Email verified successfully',
+      });
+      expect(verifyEmailSpy).toHaveBeenCalledWith(
+        verifyDto.email,
+        verifyDto.verificationCode,
+      );
+    });
+
+    it('should throw BadRequestException when user not found', async () => {
+      jest.spyOn(usersService, 'verifyEmail').mockResolvedValue(null);
+
+      await expect(service.verifyEmail(verifyDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.verifyEmail(verifyDto)).rejects.toThrow(
+        'Invalid verification code or user not found',
+      );
+    });
+
+    it('should throw BadRequestException when verification code is invalid', async () => {
+      const invalidDto: VerifyEmailDto = {
+        email: 'test@example.com',
+        verificationCode: 'WRONG1',
+      };
+
+      jest.spyOn(usersService, 'verifyEmail').mockResolvedValue(null);
+
+      await expect(service.verifyEmail(invalidDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.verifyEmail(invalidDto)).rejects.toThrow(
+        'Invalid verification code or user not found',
       );
     });
   });

@@ -101,4 +101,22 @@ export class UsersService {
   ): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
+
+  async verifyEmail(
+    email: string,
+    verificationCode: string,
+  ): Promise<User | null> {
+    const user = await this.findByEmail(email);
+
+    if (!user) {
+      return null;
+    }
+
+    if (user.emailVerificationCode !== verificationCode) {
+      return null;
+    }
+
+    user.isEmailVerified = true;
+    return this.usersRepository.save(user);
+  }
 }

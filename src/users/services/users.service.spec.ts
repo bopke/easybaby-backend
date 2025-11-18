@@ -372,4 +372,49 @@ describe('UsersService', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('verifyEmail', () => {
+    it('should verify email when code matches', async () => {
+      const verifiedUser = { ...mockUser, isEmailVerified: true };
+
+      findOneSpy.mockResolvedValue(mockUser);
+      saveSpy.mockResolvedValue(verifiedUser);
+
+      const result = await service.verifyEmail(
+        mockUser.email,
+        mockUser.emailVerificationCode,
+      );
+
+      expect(findOneSpy).toHaveBeenCalledWith({
+        where: { email: mockUser.email },
+      });
+      expect(saveSpy).toHaveBeenCalled();
+      expect(result).toBeTruthy();
+      expect(result?.isEmailVerified).toBe(true);
+    });
+
+    it('should return null when user not found', async () => {
+      findOneSpy.mockResolvedValue(null);
+
+      const result = await service.verifyEmail(
+        'nonexistent@example.com',
+        'ABC123',
+      );
+
+      expect(result).toBeNull();
+      expect(saveSpy).not.toHaveBeenCalled();
+    });
+
+    it('should return null when verification code does not match', async () => {
+      findOneSpy.mockResolvedValue(mockUser);
+
+      const result = await service.verifyEmail(mockUser.email, 'WRONG1');
+
+      expect(findOneSpy).toHaveBeenCalledWith({
+        where: { email: mockUser.email },
+      });
+      expect(result).toBeNull();
+      expect(saveSpy).not.toHaveBeenCalled();
+    });
+  });
 });

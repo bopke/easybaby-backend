@@ -6,6 +6,7 @@ import {
   RegisterDto,
   AuthResponseDto,
   ResendVerificationEmailDto,
+  VerifyEmailDto,
 } from '../dtos';
 import { Public } from '../guards';
 
@@ -82,5 +83,30 @@ export class AuthController {
     @Body() dto: ResendVerificationEmailDto,
   ): Promise<{ message: string }> {
     return this.authService.resendVerificationEmail(dto);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify email address' })
+  @ApiResponse({
+    status: 200,
+    description: 'Email verified successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Email verified successfully',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid verification code or user not found',
+  })
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
+    return this.authService.verifyEmail(dto);
   }
 }
