@@ -20,8 +20,10 @@ describe('RefreshTokenService', () => {
     save: jest.fn(),
     findOne: jest.fn(),
     find: jest.fn(),
+    findAndCount: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
+    delete: jest.fn(),
     createQueryBuilder: jest.fn(),
   };
 
@@ -305,7 +307,7 @@ describe('RefreshTokenService', () => {
   });
 
   describe('getUserSessions', () => {
-    it('should return all active sessions for a user', async () => {
+    it('should return paginated sessions for a user', async () => {
       const mockSessions = [
         createMockRefreshToken({
           id: 'session-1',
@@ -314,14 +316,19 @@ describe('RefreshTokenService', () => {
         }),
       ];
 
-      const findSpy = jest
-        .spyOn(repository, 'find')
-        .mockResolvedValue(mockSessions);
+      const findAndCountSpy = jest
+        .spyOn(repository, 'findAndCount')
+        .mockResolvedValue([mockSessions, 1]);
 
       const result = await service.getUserSessions(mockUser.id);
 
-      expect(result).toEqual(mockSessions);
-      expect(findSpy).toHaveBeenCalledWith({
+      expect(result).toEqual({
+        data: mockSessions,
+        total: 1,
+        page: 1,
+        limit: 10,
+      });
+      expect(findAndCountSpy).toHaveBeenCalledWith({
         where: {
           userId: mockUser.id,
           isRevoked: false,
@@ -329,7 +336,40 @@ describe('RefreshTokenService', () => {
         order: {
           createdAt: 'DESC',
         },
+        skip: 0,
+        take: 10,
       });
+    });
+
+    it('should support pagination, filtering, and ordering', async () => {
+      const mockSessions = [
+        createMockRefreshToken({
+          id: 'session-1',
+          jti: 'jti-1',
+          ipAddress: '192.168.1.1',
+          userAgent: 'Mozilla/5.0',
+          tokenFamily: 'family-1',
+        }),
+      ];
+
+      const findAndCountSpy = jest
+        .spyOn(repository, 'findAndCount')
+        .mockResolvedValue([mockSessions, 1]);
+
+      const result = await service.getUserSessions(
+        mockUser.id,
+        { page: 2, limit: 5 },
+        { ipAddress: '192.168', userAgent: 'Mozilla' },
+        { order: ['lastUsedAt:desc'] },
+      );
+
+      expect(result).toEqual({
+        data: mockSessions,
+        total: 1,
+        page: 2,
+        limit: 5,
+      });
+      expect(findAndCountSpy).toHaveBeenCalled();
     });
   });
 });

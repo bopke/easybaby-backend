@@ -5,3 +5,4 @@ export * from './resend-verification-email.dto';
 export * from './verify-email.dto';
 export * from './refresh-token.dto';
 export * from './session-response.dto';
+export * from './session-query.dto';

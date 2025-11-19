@@ -1,11 +1,18 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import {
+  Repository,
+  LessThan,
+  ILike,
+  FindOptionsWhere,
+  FindOptionsOrder,
+} from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { User } from '../../users/entities/user.entity';
+import { Paginated, Pagination } from '../../common/pagination';
 
 export interface RefreshTokenPayload {
   sub: string; // user ID
@@ -192,18 +199,77 @@ export class RefreshTokenService {
   }
 
   /**
-   * Get all active sessions for a user
+   * Get all active sessions for a user with pagination, filtering, and ordering
    */
-  async getUserSessions(userId: string): Promise<RefreshToken[]> {
-    return this.refreshTokenRepository.find({
-      where: {
-        userId,
-        isRevoked: false,
-      },
-      order: {
-        createdAt: 'DESC',
-      },
+  async getUserSessions(
+    userId: string,
+    pagination: Pagination = { page: 1, limit: 10 },
+    filters: {
+      ipAddress?: string;
+      userAgent?: string;
+      tokenFamily?: string;
+    } = {},
+    ordering: { order?: string[] } = {},
+  ): Promise<Paginated<RefreshToken>> {
+    const { page, limit } = pagination;
+    const where = this.buildWhereClauseForSessions(userId, filters);
+    const order = this.buildOrderClauseForSessions(ordering);
+
+    const [sessions, total] = await this.refreshTokenRepository.findAndCount({
+      where,
+      order,
+      skip: (page - 1) * limit,
+      take: limit,
     });
+
+    return { data: sessions, total, page, limit };
+  }
+
+  private buildWhereClauseForSessions(
+    userId: string,
+    filters: {
+      ipAddress?: string;
+      userAgent?: string;
+      tokenFamily?: string;
+    },
+  ): FindOptionsWhere<RefreshToken> {
+    const where: FindOptionsWhere<RefreshToken> = {
+      userId,
+      isRevoked: false,
+    };
+
+    // String filters - use ILike for case-insensitive partial matching
+    if (filters.ipAddress) {
+      where.ipAddress = ILike(`%${filters.ipAddress}%`);
+    }
+    if (filters.userAgent) {
+      where.userAgent = ILike(`%${filters.userAgent}%`);
+    }
+    if (filters.tokenFamily) {
+      where.tokenFamily = filters.tokenFamily;
+    }
+
+    return where;
+  }
+
+  private buildOrderClauseForSessions(ordering: {
+    order?: string[];
+  }): FindOptionsOrder<RefreshToken> {
+    const order: FindOptionsOrder<RefreshToken> = {};
+
+    if (ordering.order && ordering.order.length > 0) {
+      for (const orderStr of ordering.order) {
+        const [field, direction] = orderStr.split(':');
+        order[field as keyof RefreshToken] = direction.toUpperCase() as
+          | 'ASC'
+          | 'DESC';
+      }
+    } else {
+      // Default order by createdAt descending
+      order.createdAt = 'DESC';
+    }
+
+    return order;
   }
 
   /**
@@ -212,24 +278,8 @@ export class RefreshTokenService {
   async hasReachedSessionLimit(userId: string): Promise<boolean> {
     const maxSessions =
       this.configService.get<number>('refreshToken.maxSessions') || 5;
-    const activeSessions = await this.getUserSessions(userId);
-    return activeSessions.length >= maxSessions;
-  }
-
-  /**
-   * Remove oldest session if user has reached limit
-   */
-  async removeOldestSessionIfNeeded(userId: string): Promise<void> {
-    if (await this.hasReachedSessionLimit(userId)) {
-      const sessions = await this.getUserSessions(userId);
-      const oldestSession = sessions[sessions.length - 1];
-      if (oldestSession) {
-        await this.revokeTokenByJti(oldestSession.jti);
-        this.logger.log(
-          `Removed oldest session for user ${userId} due to session limit`,
-        );
-      }
-    }
+    const result = await this.getUserSessions(userId);
+    return result.total >= maxSessions;
   }
 
   /**

@@ -21,6 +21,7 @@ import { UserResponseDto } from '../../users/dtos';
 import { JwtPayload } from '../strategies/jwt.strategy';
 import { EmailService } from '../../email/services/email.service';
 import { RefreshTokenService } from './refresh-token.service';
+import { Paginated, Pagination } from '../../common/pagination';
 
 @Injectable()
 export class AuthService {
@@ -229,13 +230,25 @@ export class AuthService {
   }
 
   /**
-   * Get all active sessions for a user
+   * Get all active sessions for a user with pagination, filtering, and ordering
    */
   async getSessions(
     userId: string,
+    pagination: Pagination = { page: 1, limit: 10 },
+    filters: {
+      ipAddress?: string;
+      userAgent?: string;
+      tokenFamily?: string;
+    } = {},
+    ordering: { order?: string[] } = {},
     currentRefreshToken?: string,
-  ): Promise<SessionResponseDto[]> {
-    const sessions = await this.refreshTokenService.getUserSessions(userId);
+  ): Promise<Paginated<SessionResponseDto>> {
+    const result = await this.refreshTokenService.getUserSessions(
+      userId,
+      pagination,
+      filters,
+      ordering,
+    );
 
     let currentJti: string | undefined;
     if (currentRefreshToken) {
@@ -250,8 +263,11 @@ export class AuthService {
       }
     }
 
-    return sessions.map((session) =>
-      SessionResponseDto.fromEntity(session, currentJti),
-    );
+    return {
+      ...result,
+      data: result.data.map((session) =>
+        SessionResponseDto.fromEntity(session, currentJti),
+      ),
+    };
   }
 }

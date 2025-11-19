@@ -420,7 +420,7 @@ describe('AuthController', () => {
         email: 'test@example.com',
       };
 
-      const mockSessions: SessionResponseDto[] = [
+      const mockSessionData: SessionResponseDto[] = [
         {
           id: 'session-1',
           ipAddress: '192.168.1.1',
@@ -441,15 +441,28 @@ describe('AuthController', () => {
         },
       ];
 
+      const mockResponse = {
+        data: mockSessionData,
+        total: 2,
+        page: 1,
+        limit: 10,
+      };
+
       const getSessionsSpy = jest
         .spyOn(authService, 'getSessions')
-        .mockResolvedValue(mockSessions);
+        .mockResolvedValue(mockResponse);
 
-      const result = await controller.getSessions(mockUser);
+      const result = await controller.getSessions(mockUser, {});
 
-      expect(result).toEqual(mockSessions);
-      expect(result).toHaveLength(2);
-      expect(getSessionsSpy).toHaveBeenCalledWith(mockUser.id, undefined);
+      expect(result).toEqual(mockResponse);
+      expect(result.data).toHaveLength(2);
+      expect(getSessionsSpy).toHaveBeenCalledWith(
+        mockUser.id,
+        { page: 1, limit: 10 },
+        {},
+        { order: undefined },
+        undefined,
+      );
       expect(getSessionsSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -459,11 +472,11 @@ describe('AuthController', () => {
         email: 'test@example.com',
       };
 
-      const refreshDto: RefreshTokenDto = {
+      const query = {
         refreshToken: 'current.refresh.token',
       };
 
-      const mockSessions: SessionResponseDto[] = [
+      const mockSessionData: SessionResponseDto[] = [
         {
           id: 'session-1',
           ipAddress: '192.168.1.1',
@@ -475,16 +488,26 @@ describe('AuthController', () => {
         },
       ];
 
+      const mockResponse = {
+        data: mockSessionData,
+        total: 1,
+        page: 1,
+        limit: 10,
+      };
+
       const getSessionsSpy = jest
         .spyOn(authService, 'getSessions')
-        .mockResolvedValue(mockSessions);
+        .mockResolvedValue(mockResponse);
 
-      const result = await controller.getSessions(mockUser, refreshDto);
+      const result = await controller.getSessions(mockUser, query);
 
-      expect(result).toEqual(mockSessions);
-      expect(result[0].isCurrent).toBe(true);
+      expect(result).toEqual(mockResponse);
+      expect(result.data[0].isCurrent).toBe(true);
       expect(getSessionsSpy).toHaveBeenCalledWith(
         mockUser.id,
+        { page: 1, limit: 10 },
+        {},
+        { order: undefined },
         'current.refresh.token',
       );
     });

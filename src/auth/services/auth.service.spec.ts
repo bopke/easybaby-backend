@@ -496,7 +496,7 @@ describe('AuthService', () => {
   });
 
   describe('getSessions', () => {
-    it('should return all active sessions for a user', async () => {
+    it('should return paginated sessions for a user', async () => {
       const mockSessions = [
         createMockRefreshToken({
           id: 'session-1',
@@ -515,15 +515,28 @@ describe('AuthService', () => {
 
       const getUserSessionsSpy = jest
         .spyOn(refreshTokenService, 'getUserSessions')
-        .mockResolvedValue(mockSessions);
+        .mockResolvedValue({
+          data: mockSessions,
+          total: 2,
+          page: 1,
+          limit: 10,
+        });
 
       const result = await service.getSessions(mockUser.id);
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toHaveProperty('id', 'session-1');
-      expect(result[0]).toHaveProperty('isCurrent', false);
-      expect(result[1]).toHaveProperty('id', 'session-2');
-      expect(getUserSessionsSpy).toHaveBeenCalledWith(mockUser.id);
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0]).toHaveProperty('id', 'session-1');
+      expect(result.data[0]).toHaveProperty('isCurrent', false);
+      expect(result.data[1]).toHaveProperty('id', 'session-2');
+      expect(result.total).toBe(2);
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(10);
+      expect(getUserSessionsSpy).toHaveBeenCalledWith(
+        mockUser.id,
+        { page: 1, limit: 10 },
+        {},
+        {},
+      );
     });
 
     it('should mark current session when refresh token is provided', async () => {
@@ -542,19 +555,25 @@ describe('AuthService', () => {
         family: 'family-1',
       };
 
-      jest
-        .spyOn(refreshTokenService, 'getUserSessions')
-        .mockResolvedValue(mockSessions);
+      jest.spyOn(refreshTokenService, 'getUserSessions').mockResolvedValue({
+        data: mockSessions,
+        total: 1,
+        page: 1,
+        limit: 10,
+      });
       jest
         .spyOn(refreshTokenService, 'validateRefreshToken')
         .mockResolvedValue(mockPayload);
 
       const result = await service.getSessions(
         mockUser.id,
+        { page: 1, limit: 10 },
+        {},
+        {},
         'valid.refresh.token',
       );
 
-      expect(result[0]).toHaveProperty('isCurrent', true);
+      expect(result.data[0]).toHaveProperty('isCurrent', true);
     });
   });
 });

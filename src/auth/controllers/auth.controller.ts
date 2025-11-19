@@ -7,12 +7,15 @@ import {
   HttpStatus,
   Req,
   Ip,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiExtraModels,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AuthService } from '../services/auth.service';
@@ -24,11 +27,14 @@ import {
   VerifyEmailDto,
   RefreshTokenDto,
   SessionResponseDto,
+  SessionQueryDto,
 } from '../dtos';
+import { Paginated } from '../../common/pagination';
 import { Public } from '../guards';
 import { CurrentUser, type JwtUser } from '../decorators';
 
 @ApiTags('Authentication')
+@ApiExtraModels(SessionResponseDto)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -221,11 +227,37 @@ export class AuthController {
   @Get('sessions')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all active sessions for current user' })
+  @ApiOperation({
+    summary:
+      'Get all active sessions for current user with optional filtering, ordering, and pagination',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Sessions retrieved successfully',
-    type: [SessionResponseDto],
+    description: 'Paginated list of sessions matching the filters and ordering',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: getSchemaPath(SessionResponseDto) },
+        },
+        total: {
+          type: 'number',
+          description: 'Total number of sessions matching the filters',
+          example: 5,
+        },
+        page: {
+          type: 'number',
+          description: 'Current page number',
+          example: 1,
+        },
+        limit: {
+          type: 'number',
+          description: 'Number of items per page',
+          example: 10,
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 401,
@@ -233,8 +265,16 @@ export class AuthController {
   })
   async getSessions(
     @CurrentUser() user: JwtUser,
-    @Body() dto?: RefreshTokenDto,
-  ): Promise<SessionResponseDto[]> {
-    return this.authService.getSessions(user.id, dto?.refreshToken);
+    @Query() query: SessionQueryDto,
+  ): Promise<Paginated<SessionResponseDto>> {
+    const { page = 1, limit = 10, order, refreshToken, ...filters } = query;
+
+    return this.authService.getSessions(
+      user.id,
+      { page, limit },
+      filters,
+      { order },
+      refreshToken,
+    );
   }
 }
