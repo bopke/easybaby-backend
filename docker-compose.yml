@@ -27,7 +27,12 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: development
+      PORT: 3000
+      CORS_ORIGIN: '*'
       JWT_SECRET: changeme
+      JWT_ISSUER: workshops-api
+      JWT_AUDIENCE: workshops-api
+      REFRESH_TOKEN_SECRET: changeme-refresh
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_USER: postgres
