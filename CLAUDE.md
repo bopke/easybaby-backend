@@ -5,11 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 This is a Workshops API built with NestJS TypeScript - a Node.js framework for building efficient and scalable server-side applications. The project implements:
-- **Authentication**: JWT-based authentication with Passport
+- **Authentication**: JWT-based authentication with Passport, including refresh token rotation
+- **Session Management**: Multi-device session tracking with pagination, filtering, and ordering
 - **Database**: PostgreSQL with TypeORM for data persistence
 - **Email**: Transactional emails via Brevo (formerly Sendinblue)
+- **Scheduled Tasks**: Automated cleanup jobs using @nestjs/schedule
 - **API Documentation**: Swagger/OpenAPI documentation
-- **Security**: Global authentication guards, rate limiting, CORS
+- **Security**: Global authentication guards, rate limiting, CORS, token family tracking
 - **Validation**: Class-validator for DTO validation
 
 The project follows NestJS architectural patterns with modular structure, dependency injection, and decorator-based routing.
@@ -56,10 +58,10 @@ npm run migration:show      # Show migration status
 ## Architecture
 
 ### Module System
-- **AppModule** (src/app.module.ts): Root module that imports all feature modules
-- **AuthModule**: JWT authentication, login, registration
+- **AppModule** (src/app.module.ts): Root module that imports all feature modules and ScheduleModule
+- **AuthModule**: JWT authentication, refresh tokens, session management, scheduled cleanup tasks
 - **UsersModule**: User management and CRUD operations
-- **TrainersModule**: Trainers catalog with public CRUD operations
+- **TrainersModule**: Trainers catalog with public CRUD operations and pagination
 - **EmailModule**: Email sending via Brevo API
 - **HealthModule**: Health checks for the application and database
 
@@ -135,9 +137,20 @@ module/
 - **CSV Import**: Initial data can be populated from `trainers.csv`
 
 ### Authentication & Authorization
-- **Strategy**: JWT tokens with Passport.js
-- **Token Structure**: Includes `sub` (user ID), `email`, `iss` (issuer), `aud` (audience)
-- **Token Expiration**: 1 hour (3600 seconds)
+- **Strategy**: JWT tokens with Passport.js + Refresh Token rotation
+- **Access Token Structure**: Includes `sub` (user ID), `email`, `iss` (issuer), `aud` (audience)
+- **Access Token Expiration**: 1 hour (3600 seconds, hardcoded)
+- **Refresh Token Expiration**: 30 days (hardcoded for consistency)
+- **Token Security**:
+  - Refresh tokens stored in database with JTI (JWT ID)
+  - Token family tracking for rotation detection
+  - Automatic revocation of entire family on token reuse detection
+  - IP address and user agent tracking per session
+- **Session Management**:
+  - Unlimited active sessions per user
+  - Sessions can be listed with pagination, filtering, and ordering
+  - Current session marking via refresh token
+  - Individual session revocation or logout from all devices
 - **Global Guard**: `JwtAuthGuard` protects all endpoints by default
 - **Public Routes**: Use `@Public()` decorator to bypass authentication (e.g., auth endpoints, trainers endpoints)
 - **Protected Routes**: Require `Authorization: Bearer <token>` header (e.g., users endpoints)
@@ -148,11 +161,18 @@ module/
 - **Validation**: Joi schema validates all required env vars on startup
 - **Configuration File**: `src/config/configuration.ts` exports typed config object
 - **Required Env Vars**:
-  - `DATABASE_*`: PostgreSQL connection details
+  - `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_NAME`: PostgreSQL connection details
   - `JWT_SECRET`: Secret key for JWT signing
-  - `JWT_ISSUER`: Token issuer (default: 'workshops-api')
-  - `JWT_AUDIENCE`: Token audience (default: 'workshops-api')
-  - Email configuration for Brevo API
+  - `DEFAULT_SENDER_EMAIL`, `DEFAULT_SENDER_NAME`: Email configuration
+- **Optional Env Vars** (with defaults):
+  - `NODE_ENV` (default: 'development')
+  - `PORT` (default: 3000)
+  - `CORS_ORIGIN` (default: '*')
+  - `DATABASE_PORT` (default: 5432)
+  - `JWT_ISSUER` (default: 'workshops-api')
+  - `JWT_AUDIENCE` (default: 'workshops-api')
+  - `REFRESH_TOKEN_SECRET` (default: uses `JWT_SECRET`)
+  - `BREVO_API_KEY` (optional, for email functionality)
 
 ## TypeScript Configuration
 
@@ -181,6 +201,15 @@ module/
 - Located alongside source files in respective folders (e.g., `services/*.spec.ts`, `controllers/*.spec.ts`)
 - Use Jest framework with ts-jest transformer
 - Mock external dependencies (database, services, APIs)
+- **Centralized Test Mocks**: Use factory functions from `mocks/` directories
+  - `src/users/mocks/user.mock.ts`: `createMockUser()`, `mockUser`, `createMockVerifiedUser()`
+  - `src/auth/mocks/refresh-token.mock.ts`: `createMockRefreshToken()`, `mockRefreshToken`
+- **Logger Suppression**: Suppress logger output in tests using:
+  ```typescript
+  jest.spyOn(Logger.prototype, 'log').mockImplementation();
+  jest.spyOn(Logger.prototype, 'error').mockImplementation();
+  jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+  ```
 - **Important**: Use spy references for assertions to avoid `unbound-method` linting errors
   ```typescript
   // ✓ Correct
@@ -278,11 +307,58 @@ The project uses NestJS CLI (`nest` command) for build operations:
 - Source root: `src/`
 - Deletes output directory on each build
 
+## Scheduled Tasks
+
+The application uses `@nestjs/schedule` for automated background jobs:
+
+### Token Cleanup Job
+- **Service**: `ScheduledTasksService` in auth module
+- **Schedule**: Daily at 3:00 AM (`CronExpression.EVERY_DAY_AT_3AM`)
+- **Purpose**: Removes expired refresh tokens from database
+- **Logging**: Logs start, completion with count, and any errors
+- **Error Handling**: Graceful error handling to prevent application crashes
+
+### Customizing Schedule
+Modify the `@Cron()` decorator in `src/auth/services/scheduled-tasks.service.ts`:
+```typescript
+@Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)  // 12:00 AM
+@Cron(CronExpression.EVERY_WEEK)              // Weekly
+@Cron('0 */6 * * *')                           // Every 6 hours
+```
+
+## Pagination, Filtering, and Ordering
+
+Several endpoints support pagination, filtering, and ordering following a consistent pattern:
+
+### Trainers Endpoint (`GET /trainers`)
+- **Pagination**: `?page=1&limit=10`
+- **Filtering**: `?name=John&city=Warsaw&isVerified=true`
+- **Ordering**: `?order=name:asc&order=createdAt:desc`
+- Returns: `Paginated<TrainerResponseDto>` with `data`, `total`, `page`, `limit`
+
+### Sessions Endpoint (`GET /auth/sessions`)
+- **Pagination**: `?page=1&limit=10`
+- **Filtering**: `?ipAddress=192.168&userAgent=Mozilla&tokenFamily=family-123`
+- **Ordering**: `?order=lastUsedAt:desc&order=createdAt:desc`
+- **Special**: `?refreshToken=token` to mark current session
+- Returns: `Paginated<SessionResponseDto>` with `data`, `total`, `page`, `limit`
+
+### Implementation Pattern
+1. Create a `*QueryDto` with pagination, filtering, and ordering fields
+2. Use `@Query()` decorator in controller
+3. Service receives `Pagination`, filters object, and ordering object
+4. Build TypeORM `FindOptionsWhere` and `FindOptionsOrder`
+5. Use `findAndCount()` for efficient pagination
+6. Return `Paginated<T>` result
+
 ## Important Notes
 
 - **Do NOT modify** `eslint.config.mjs` to disable linting rules
 - **Always use** the standardized module structure for new modules
+- **Always use** centralized mocks from `mocks/` directories in tests
 - **Store spy references** in tests to avoid `unbound-method` errors
+- **Suppress logger output** in tests to keep output clean
 - **Mark public routes** explicitly with `@Public()` decorator
 - **Document all endpoints** with Swagger decorators
 - **Validate all inputs** with class-validator DTOs
+- **Pagination/filtering/ordering**: Follow the trainers/sessions pattern for consistency
