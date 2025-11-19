@@ -93,6 +93,24 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/",
+      "/migrations/"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/",
+      "/migrations/",
+      "main.ts",
+      "data-source.ts",
+      ".module.ts$",
+      ".interface.ts$",
+      ".dto.ts$",
+      ".entity.ts$",
+      ".enum.ts$",
+      ".strategy.ts$"
+    ]
   }
 }
