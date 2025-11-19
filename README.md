@@ -73,6 +73,10 @@ $ npm run start:dev
 $ npm run build && npm run start:prod
 ```
 
+## API documentation
+
+When the app is properly running, you can access swagger documentation at http://localhost:3000/api/
+
 ## Run tests
 
 ```bash
