@@ -10,31 +10,23 @@ import {
 import { AuthService } from './auth.service';
 import { UsersService } from '../../users/services/users.service';
 import { EmailService } from '../../email/services/email.service';
+import { RefreshTokenService } from './refresh-token.service';
 import {
   LoginDto,
   RegisterDto,
   ResendVerificationEmailDto,
   VerifyEmailDto,
+  RefreshTokenDto,
 } from '../dtos';
-import { User } from '../../users/entities/user.entity';
-import { UserRole } from '../../users/entities/enums';
+import { mockUser, createMockUser } from '../../users/mocks';
+import { createMockRefreshToken } from '../mocks';
 
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: UsersService;
   let jwtService: JwtService;
   let emailService: EmailService;
-
-  const mockUser: User = {
-    id: '123e4567-e89b-12d3-a456-426614174000',
-    email: 'test@example.com',
-    password: 'hashedPassword123',
-    role: UserRole.NORMAL,
-    emailVerificationCode: 'ABC123',
-    isEmailVerified: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  let refreshTokenService: RefreshTokenService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -44,6 +36,7 @@ describe('AuthService', () => {
           provide: UsersService,
           useValue: {
             findByEmail: jest.fn(),
+            findOne: jest.fn(),
             comparePasswords: jest.fn(),
             create: jest.fn(),
             remove: jest.fn(),
@@ -75,6 +68,17 @@ describe('AuthService', () => {
             sendRegistrationEmail: jest.fn(),
           },
         },
+        {
+          provide: RefreshTokenService,
+          useValue: {
+            generateRefreshToken: jest.fn(),
+            validateRefreshToken: jest.fn(),
+            rotateRefreshToken: jest.fn(),
+            revokeTokenByJti: jest.fn(),
+            revokeAllUserTokens: jest.fn(),
+            getUserSessions: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -82,6 +86,7 @@ describe('AuthService', () => {
     usersService = module.get<UsersService>(UsersService);
     jwtService = module.get<JwtService>(JwtService);
     emailService = module.get<EmailService>(EmailService);
+    refreshTokenService = module.get<RefreshTokenService>(RefreshTokenService);
   });
 
   afterEach(() => {
@@ -93,7 +98,7 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('should return auth response with access token when credentials are valid', async () => {
+    it('should return auth response with access and refresh tokens when credentials are valid', async () => {
       const loginDto: LoginDto = {
         email: 'test@example.com',
         password: 'password123',
@@ -104,12 +109,24 @@ describe('AuthService', () => {
       const signSpy = jest
         .spyOn(jwtService, 'sign')
         .mockReturnValue('mock.jwt.token');
+      const generateRefreshSpy = jest
+        .spyOn(refreshTokenService, 'generateRefreshToken')
+        .mockResolvedValue({
+          token: 'mock.refresh.token',
+          expiresIn: 2592000,
+        });
 
-      const result = await service.login(loginDto);
+      const result = await service.login(
+        loginDto,
+        '192.168.1.1',
+        'Mozilla/5.0',
+      );
 
       expect(result).toHaveProperty('accessToken', 'mock.jwt.token');
       expect(result).toHaveProperty('tokenType', 'Bearer');
       expect(result).toHaveProperty('expiresIn', 3600);
+      expect(result).toHaveProperty('refreshToken', 'mock.refresh.token');
+      expect(result).toHaveProperty('refreshTokenExpiresIn', 2592000);
       expect(result).toHaveProperty('user');
       expect(result.user.email).toBe(mockUser.email);
       expect(result.user.id).toBe(mockUser.id);
@@ -120,6 +137,11 @@ describe('AuthService', () => {
         iss: 'workshops-api',
         aud: 'workshops-api',
       });
+      expect(generateRefreshSpy).toHaveBeenCalledWith(
+        mockUser,
+        '192.168.1.1',
+        'Mozilla/5.0',
+      );
     });
 
     it('should throw UnauthorizedException when user is not found', async () => {
@@ -163,16 +185,11 @@ describe('AuthService', () => {
         password: 'password123',
       };
 
-      const newUser: User = {
+      const newUser = createMockUser({
         id: 'new-user-id',
         email: registerDto.email,
-        password: 'hashedPassword123',
-        role: UserRole.NORMAL,
         emailVerificationCode: 'XYZ789',
-        isEmailVerified: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      });
 
       const createSpy = jest
         .spyOn(usersService, 'create')
@@ -222,16 +239,11 @@ describe('AuthService', () => {
         password: 'password123',
       };
 
-      const newUser: User = {
+      const newUser = createMockUser({
         id: 'new-user-id',
         email: registerDto.email,
-        password: 'hashedPassword123',
-        role: UserRole.NORMAL,
         emailVerificationCode: 'DEF456',
-        isEmailVerified: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      });
 
       jest.spyOn(usersService, 'create').mockResolvedValue(newUser);
       const removeSpy = jest
@@ -325,7 +337,7 @@ describe('AuthService', () => {
     });
 
     it('should throw BadRequestException when email is already verified', async () => {
-      const verifiedUser = { ...mockUser, isEmailVerified: true };
+      const verifiedUser = createMockUser({ isEmailVerified: true });
 
       jest.spyOn(usersService, 'findByEmail').mockResolvedValue(verifiedUser);
 
@@ -345,7 +357,7 @@ describe('AuthService', () => {
     };
 
     it('should verify email successfully when code is valid', async () => {
-      const verifiedUser = { ...mockUser, isEmailVerified: true };
+      const verifiedUser = createMockUser({ isEmailVerified: true });
 
       const verifyEmailSpy = jest
         .spyOn(usersService, 'verifyEmail')
@@ -387,6 +399,162 @@ describe('AuthService', () => {
       await expect(service.verifyEmail(invalidDto)).rejects.toThrow(
         'Invalid verification code or user not found',
       );
+    });
+  });
+
+  describe('refreshTokens', () => {
+    it('should refresh access and refresh tokens successfully', async () => {
+      const refreshDto: RefreshTokenDto = {
+        refreshToken: 'valid.refresh.token',
+      };
+      const mockPayload = {
+        sub: mockUser.id,
+        jti: 'old-jti',
+        type: 'refresh' as const,
+        family: 'family-123',
+      };
+
+      const validateSpy = jest
+        .spyOn(refreshTokenService, 'validateRefreshToken')
+        .mockResolvedValue(mockPayload);
+      const findOneSpy = jest
+        .spyOn(usersService, 'findOne')
+        .mockResolvedValue(mockUser);
+      const rotateSpy = jest
+        .spyOn(refreshTokenService, 'rotateRefreshToken')
+        .mockResolvedValue({
+          token: 'new.refresh.token',
+          expiresIn: 2592000,
+        });
+      const signSpy = jest
+        .spyOn(jwtService, 'sign')
+        .mockReturnValue('new.access.token');
+
+      const result = await service.refreshTokens(
+        refreshDto,
+        '192.168.1.1',
+        'Mozilla/5.0',
+      );
+
+      expect(result).toHaveProperty('accessToken', 'new.access.token');
+      expect(result).toHaveProperty('refreshToken', 'new.refresh.token');
+      expect(result).toHaveProperty('refreshTokenExpiresIn', 2592000);
+      expect(validateSpy).toHaveBeenCalledWith(
+        'valid.refresh.token',
+        '192.168.1.1',
+        'Mozilla/5.0',
+      );
+      expect(findOneSpy).toHaveBeenCalledWith(mockUser.id);
+      expect(rotateSpy).toHaveBeenCalledWith(
+        'valid.refresh.token',
+        mockUser,
+        '192.168.1.1',
+        'Mozilla/5.0',
+      );
+      expect(signSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('logout', () => {
+    it('should logout from current session successfully', async () => {
+      const refreshToken = 'valid.refresh.token';
+      const mockPayload = {
+        sub: mockUser.id,
+        jti: 'jti-123',
+        type: 'refresh' as const,
+        family: 'family-123',
+      };
+
+      const validateSpy = jest
+        .spyOn(refreshTokenService, 'validateRefreshToken')
+        .mockResolvedValue(mockPayload);
+      const revokeSpy = jest
+        .spyOn(refreshTokenService, 'revokeTokenByJti')
+        .mockResolvedValue();
+
+      const result = await service.logout(refreshToken);
+
+      expect(result).toEqual({ message: 'Logged out successfully' });
+      expect(validateSpy).toHaveBeenCalledWith(refreshToken);
+      expect(revokeSpy).toHaveBeenCalledWith('jti-123');
+    });
+  });
+
+  describe('logoutAllDevices', () => {
+    it('should logout from all devices successfully', async () => {
+      const revokeSpy = jest
+        .spyOn(refreshTokenService, 'revokeAllUserTokens')
+        .mockResolvedValue();
+
+      const result = await service.logoutAllDevices(mockUser.id);
+
+      expect(result).toEqual({
+        message: 'Logged out from all devices successfully',
+      });
+      expect(revokeSpy).toHaveBeenCalledWith(mockUser.id);
+    });
+  });
+
+  describe('getSessions', () => {
+    it('should return all active sessions for a user', async () => {
+      const mockSessions = [
+        createMockRefreshToken({
+          id: 'session-1',
+          jti: 'jti-1',
+          tokenFamily: 'family-1',
+        }),
+        createMockRefreshToken({
+          id: 'session-2',
+          jti: 'jti-2',
+          lastUsedAt: new Date(),
+          ipAddress: '192.168.1.2',
+          userAgent: 'Chrome/100.0',
+          tokenFamily: 'family-2',
+        }),
+      ];
+
+      const getUserSessionsSpy = jest
+        .spyOn(refreshTokenService, 'getUserSessions')
+        .mockResolvedValue(mockSessions);
+
+      const result = await service.getSessions(mockUser.id);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toHaveProperty('id', 'session-1');
+      expect(result[0]).toHaveProperty('isCurrent', false);
+      expect(result[1]).toHaveProperty('id', 'session-2');
+      expect(getUserSessionsSpy).toHaveBeenCalledWith(mockUser.id);
+    });
+
+    it('should mark current session when refresh token is provided', async () => {
+      const mockSessions = [
+        createMockRefreshToken({
+          id: 'session-1',
+          jti: 'jti-1',
+          tokenFamily: 'family-1',
+        }),
+      ];
+
+      const mockPayload = {
+        sub: mockUser.id,
+        jti: 'jti-1',
+        type: 'refresh' as const,
+        family: 'family-1',
+      };
+
+      jest
+        .spyOn(refreshTokenService, 'getUserSessions')
+        .mockResolvedValue(mockSessions);
+      jest
+        .spyOn(refreshTokenService, 'validateRefreshToken')
+        .mockResolvedValue(mockPayload);
+
+      const result = await service.getSessions(
+        mockUser.id,
+        'valid.refresh.token',
+      );
+
+      expect(result[0]).toHaveProperty('isCurrent', true);
     });
   });
 });

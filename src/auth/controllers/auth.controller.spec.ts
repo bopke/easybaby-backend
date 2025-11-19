@@ -13,9 +13,12 @@ import {
   AuthResponseDto,
   ResendVerificationEmailDto,
   VerifyEmailDto,
+  RefreshTokenDto,
+  SessionResponseDto,
 } from '../dtos';
 import { UserResponseDto } from '../../users/dtos';
 import { UserRole } from '../../users/entities/enums';
+import { Request } from 'express';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -32,6 +35,8 @@ describe('AuthController', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as UserResponseDto,
+    refreshToken: 'mock.refresh.token',
+    refreshTokenExpiresIn: 2592000,
   };
 
   beforeEach(async () => {
@@ -45,6 +50,10 @@ describe('AuthController', () => {
             register: jest.fn(),
             resendVerificationEmail: jest.fn(),
             verifyEmail: jest.fn(),
+            refreshTokens: jest.fn(),
+            logout: jest.fn(),
+            logoutAllDevices: jest.fn(),
+            getSessions: jest.fn(),
           },
         },
       ],
@@ -103,20 +112,34 @@ describe('AuthController', () => {
   });
 
   describe('login', () => {
-    it('should return auth response when login is successful', async () => {
+    it('should return auth response with refresh token when login is successful', async () => {
       const loginDto: LoginDto = {
         email: 'test@example.com',
         password: 'password123',
       };
 
+      const mockRequest = {
+        headers: { 'user-agent': 'Mozilla/5.0' },
+      } as Request;
+
       const loginSpy = jest
         .spyOn(authService, 'login')
         .mockResolvedValue(mockAuthResponse);
 
-      const result = await controller.login(loginDto);
+      const result = await controller.login(
+        loginDto,
+        '192.168.1.1',
+        mockRequest,
+      );
 
       expect(result).toEqual(mockAuthResponse);
-      expect(loginSpy).toHaveBeenCalledWith(loginDto);
+      expect(result).toHaveProperty('refreshToken', 'mock.refresh.token');
+      expect(result).toHaveProperty('refreshTokenExpiresIn', 2592000);
+      expect(loginSpy).toHaveBeenCalledWith(
+        loginDto,
+        '192.168.1.1',
+        'Mozilla/5.0',
+      );
       expect(loginSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -126,16 +149,20 @@ describe('AuthController', () => {
         password: 'wrongpassword',
       };
 
+      const mockRequest = {
+        headers: { 'user-agent': 'Mozilla/5.0' },
+      } as Request;
+
       jest
         .spyOn(authService, 'login')
         .mockRejectedValue(new UnauthorizedException('Invalid credentials'));
 
-      await expect(controller.login(loginDto)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(controller.login(loginDto)).rejects.toThrow(
-        'Invalid credentials',
-      );
+      await expect(
+        controller.login(loginDto, '192.168.1.1', mockRequest),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
+        controller.login(loginDto, '192.168.1.1', mockRequest),
+      ).rejects.toThrow('Invalid credentials');
     });
 
     it('should handle validation errors from DTO', async () => {
@@ -144,15 +171,23 @@ describe('AuthController', () => {
         password: '123', // Too short
       };
 
+      const mockRequest = {
+        headers: { 'user-agent': 'Mozilla/5.0' },
+      } as Request;
+
       // In real scenario, this would be caught by class-validator pipe
       // Here we just verify the controller passes the DTO correctly
       const loginSpy = jest
         .spyOn(authService, 'login')
         .mockResolvedValue(mockAuthResponse);
 
-      await controller.login(loginDto);
+      await controller.login(loginDto, '192.168.1.1', mockRequest);
 
-      expect(loginSpy).toHaveBeenCalledWith(loginDto);
+      expect(loginSpy).toHaveBeenCalledWith(
+        loginDto,
+        '192.168.1.1',
+        'Mozilla/5.0',
+      );
     });
   });
 
@@ -279,6 +314,178 @@ describe('AuthController', () => {
       );
       await expect(controller.verifyEmail(verifyDto)).rejects.toThrow(
         'Invalid verification code or user not found',
+      );
+    });
+  });
+
+  describe('refreshTokens', () => {
+    it('should refresh tokens successfully', async () => {
+      const refreshDto: RefreshTokenDto = {
+        refreshToken: 'valid.refresh.token',
+      };
+
+      const mockRequest = {
+        headers: { 'user-agent': 'Mozilla/5.0' },
+      } as Request;
+
+      const refreshSpy = jest
+        .spyOn(authService, 'refreshTokens')
+        .mockResolvedValue(mockAuthResponse);
+
+      const result = await controller.refreshTokens(
+        refreshDto,
+        '192.168.1.1',
+        mockRequest,
+      );
+
+      expect(result).toEqual(mockAuthResponse);
+      expect(refreshSpy).toHaveBeenCalledWith(
+        refreshDto,
+        '192.168.1.1',
+        'Mozilla/5.0',
+      );
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw UnauthorizedException when refresh token is invalid', async () => {
+      const refreshDto: RefreshTokenDto = {
+        refreshToken: 'invalid.refresh.token',
+      };
+
+      const mockRequest = {
+        headers: { 'user-agent': 'Mozilla/5.0' },
+      } as Request;
+
+      jest
+        .spyOn(authService, 'refreshTokens')
+        .mockRejectedValue(
+          new UnauthorizedException('Invalid or expired refresh token'),
+        );
+
+      await expect(
+        controller.refreshTokens(refreshDto, '192.168.1.1', mockRequest),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('logout', () => {
+    it('should logout successfully', async () => {
+      const refreshDto: RefreshTokenDto = {
+        refreshToken: 'valid.refresh.token',
+      };
+
+      const expectedResponse = {
+        message: 'Logged out successfully',
+      };
+
+      const logoutSpy = jest
+        .spyOn(authService, 'logout')
+        .mockResolvedValue(expectedResponse);
+
+      const result = await controller.logout(refreshDto);
+
+      expect(result).toEqual(expectedResponse);
+      expect(logoutSpy).toHaveBeenCalledWith('valid.refresh.token');
+      expect(logoutSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('logoutAllDevices', () => {
+    it('should logout from all devices successfully', async () => {
+      const mockUser = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        email: 'test@example.com',
+      };
+
+      const expectedResponse = {
+        message: 'Logged out from all devices successfully',
+      };
+
+      const logoutAllSpy = jest
+        .spyOn(authService, 'logoutAllDevices')
+        .mockResolvedValue(expectedResponse);
+
+      const result = await controller.logoutAllDevices(mockUser);
+
+      expect(result).toEqual(expectedResponse);
+      expect(logoutAllSpy).toHaveBeenCalledWith(mockUser.id);
+      expect(logoutAllSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getSessions', () => {
+    it('should return all active sessions', async () => {
+      const mockUser = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        email: 'test@example.com',
+      };
+
+      const mockSessions: SessionResponseDto[] = [
+        {
+          id: 'session-1',
+          ipAddress: '192.168.1.1',
+          userAgent: 'Mozilla/5.0',
+          createdAt: new Date(),
+          lastUsedAt: null,
+          expiresAt: new Date(Date.now() + 86400000),
+          isCurrent: true,
+        },
+        {
+          id: 'session-2',
+          ipAddress: '192.168.1.2',
+          userAgent: 'Chrome/100.0',
+          createdAt: new Date(),
+          lastUsedAt: new Date(),
+          expiresAt: new Date(Date.now() + 86400000),
+          isCurrent: false,
+        },
+      ];
+
+      const getSessionsSpy = jest
+        .spyOn(authService, 'getSessions')
+        .mockResolvedValue(mockSessions);
+
+      const result = await controller.getSessions(mockUser);
+
+      expect(result).toEqual(mockSessions);
+      expect(result).toHaveLength(2);
+      expect(getSessionsSpy).toHaveBeenCalledWith(mockUser.id, undefined);
+      expect(getSessionsSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return sessions with current session marked', async () => {
+      const mockUser = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        email: 'test@example.com',
+      };
+
+      const refreshDto: RefreshTokenDto = {
+        refreshToken: 'current.refresh.token',
+      };
+
+      const mockSessions: SessionResponseDto[] = [
+        {
+          id: 'session-1',
+          ipAddress: '192.168.1.1',
+          userAgent: 'Mozilla/5.0',
+          createdAt: new Date(),
+          lastUsedAt: null,
+          expiresAt: new Date(Date.now() + 86400000),
+          isCurrent: true,
+        },
+      ];
+
+      const getSessionsSpy = jest
+        .spyOn(authService, 'getSessions')
+        .mockResolvedValue(mockSessions);
+
+      const result = await controller.getSessions(mockUser, refreshDto);
+
+      expect(result).toEqual(mockSessions);
+      expect(result[0].isCurrent).toBe(true);
+      expect(getSessionsSpy).toHaveBeenCalledWith(
+        mockUser.id,
+        'current.refresh.token',
       );
     });
   });

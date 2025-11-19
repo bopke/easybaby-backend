@@ -1,0 +1,257 @@
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, LessThan } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { v4 as uuidv4 } from 'uuid';
+import { RefreshToken } from '../entities/refresh-token.entity';
+import { User } from '../../users/entities/user.entity';
+
+export interface RefreshTokenPayload {
+  sub: string; // user ID
+  jti: string; // JWT ID
+  type: 'refresh';
+  family: string; // token family for rotation tracking
+}
+
+@Injectable()
+export class RefreshTokenService {
+  private readonly logger = new Logger(RefreshTokenService.name);
+
+  constructor(
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepository: Repository<RefreshToken>,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  /**
+   * Generate a new refresh token for a user
+   */
+  async generateRefreshToken(
+    user: User,
+    ipAddress?: string,
+    userAgent?: string,
+    tokenFamily?: string,
+  ): Promise<{ token: string; expiresIn: number }> {
+    const jti = uuidv4();
+    const family = tokenFamily || uuidv4();
+    const expiresIn = this.getRefreshTokenExpiration();
+
+    const payload: RefreshTokenPayload = {
+      sub: user.id,
+      jti,
+      type: 'refresh',
+      family,
+    };
+
+    const token = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('refreshToken.secret'),
+      expiresIn: `${expiresIn}s`,
+    });
+
+    const refreshToken = this.refreshTokenRepository.create({
+      jti,
+      userId: user.id,
+      expiresAt: new Date(Date.now() + expiresIn * 1000),
+      ipAddress: ipAddress || null,
+      userAgent: userAgent || null,
+      tokenFamily: family,
+      isRevoked: false,
+    });
+
+    await this.refreshTokenRepository.save(refreshToken);
+
+    this.logger.log(
+      `Refresh token generated for user ${user.id} with JTI ${jti}`,
+    );
+
+    return { token, expiresIn };
+  }
+
+  /**
+   * Validate refresh token and return user ID
+   * Throws UnauthorizedException if token is invalid or revoked
+   */
+  async validateRefreshToken(
+    token: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    ipAddress?: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    userAgent?: string,
+  ): Promise<RefreshTokenPayload> {
+    try {
+      const payload = this.jwtService.verify<RefreshTokenPayload>(token, {
+        secret: this.configService.get<string>('refreshToken.secret'),
+      });
+
+      if (payload.type !== 'refresh') {
+        throw new UnauthorizedException('Invalid token type');
+      }
+
+      const tokenRecord = await this.refreshTokenRepository.findOne({
+        where: { jti: payload.jti },
+      });
+
+      if (!tokenRecord) {
+        throw new UnauthorizedException('Token not found');
+      }
+
+      if (tokenRecord.isRevoked) {
+        // Token reuse detected - revoke entire family
+        this.logger.warn(
+          `Revoked token reuse detected! Revoking entire family ${payload.family}`,
+        );
+        await this.revokeTokenFamily(payload.family);
+        throw new UnauthorizedException(
+          'Token has been revoked. All tokens in this family have been revoked for security.',
+        );
+      }
+
+      if (tokenRecord.expiresAt < new Date()) {
+        throw new UnauthorizedException('Token has expired');
+      }
+
+      // Update last used timestamp
+      tokenRecord.lastUsedAt = new Date();
+      await this.refreshTokenRepository.save(tokenRecord);
+
+      return payload;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Token validation failed: ${message}`);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  /**
+   * Rotate refresh token - issue new one and revoke old one
+   */
+  async rotateRefreshToken(
+    oldToken: string,
+    user: User,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<{ token: string; expiresIn: number }> {
+    const payload = await this.validateRefreshToken(
+      oldToken,
+      ipAddress,
+      userAgent,
+    );
+
+    await this.revokeTokenByJti(payload.jti);
+
+    return this.generateRefreshToken(
+      user,
+      ipAddress,
+      userAgent,
+      payload.family,
+    );
+  }
+
+  /**
+   * Revoke a refresh token by JTI
+   */
+  async revokeTokenByJti(jti: string): Promise<void> {
+    const token = await this.refreshTokenRepository.findOne({
+      where: { jti },
+    });
+
+    if (token) {
+      token.isRevoked = true;
+      await this.refreshTokenRepository.save(token);
+      this.logger.log(`Refresh token ${jti} revoked`);
+    }
+  }
+
+  /**
+   * Revoke all refresh tokens for a user
+   */
+  async revokeAllUserTokens(userId: string): Promise<void> {
+    await this.refreshTokenRepository.update(
+      { userId, isRevoked: false },
+      { isRevoked: true },
+    );
+
+    this.logger.log(`All refresh tokens revoked for user ${userId}`);
+  }
+
+  /**
+   * Revoke all tokens in a token family (for reuse detection)
+   */
+  async revokeTokenFamily(family: string): Promise<void> {
+    await this.refreshTokenRepository.update(
+      { tokenFamily: family, isRevoked: false },
+      { isRevoked: true },
+    );
+
+    this.logger.warn(`All tokens in family ${family} have been revoked`);
+  }
+
+  /**
+   * Get all active sessions for a user
+   */
+  async getUserSessions(userId: string): Promise<RefreshToken[]> {
+    return this.refreshTokenRepository.find({
+      where: {
+        userId,
+        isRevoked: false,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  /**
+   * Check if user has reached maximum session limit
+   */
+  async hasReachedSessionLimit(userId: string): Promise<boolean> {
+    const maxSessions =
+      this.configService.get<number>('refreshToken.maxSessions') || 5;
+    const activeSessions = await this.getUserSessions(userId);
+    return activeSessions.length >= maxSessions;
+  }
+
+  /**
+   * Remove oldest session if user has reached limit
+   */
+  async removeOldestSessionIfNeeded(userId: string): Promise<void> {
+    if (await this.hasReachedSessionLimit(userId)) {
+      const sessions = await this.getUserSessions(userId);
+      const oldestSession = sessions[sessions.length - 1];
+      if (oldestSession) {
+        await this.revokeTokenByJti(oldestSession.jti);
+        this.logger.log(
+          `Removed oldest session for user ${userId} due to session limit`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Clean up expired tokens (for scheduled job)
+   */
+  async cleanupExpiredTokens(): Promise<number> {
+    const result = await this.refreshTokenRepository.delete({
+      expiresAt: LessThan(new Date()),
+    });
+
+    const count = result.affected || 0;
+    if (count > 0) {
+      this.logger.log(`Cleaned up ${count} expired refresh tokens`);
+    }
+
+    return count;
+  }
+
+  /**
+   * Get refresh token expiration in seconds (30 days)
+   */
+  private getRefreshTokenExpiration(): number {
+    return 30 * 24 * 60 * 60; // 30 days
+  }
+}

@@ -1,5 +1,20 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Req,
+  Ip,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import type { Request } from 'express';
 import { AuthService } from '../services/auth.service';
 import {
   LoginDto,
@@ -7,8 +22,11 @@ import {
   AuthResponseDto,
   ResendVerificationEmailDto,
   VerifyEmailDto,
+  RefreshTokenDto,
+  SessionResponseDto,
 } from '../dtos';
 import { Public } from '../guards';
+import { CurrentUser, type JwtUser } from '../decorators';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -61,8 +79,13 @@ export class AuthController {
     status: 401,
     description: 'Invalid credentials',
   })
-  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.login(loginDto);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Ip() ipAddress: string,
+    @Req() req: Request,
+  ): Promise<AuthResponseDto> {
+    const userAgent = req.headers['user-agent'];
+    return this.authService.login(loginDto, ipAddress, userAgent);
   }
 
   @Public()
@@ -119,5 +142,99 @@ export class AuthController {
   })
   async verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
     return this.authService.verifyEmail(dto);
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Token refreshed successfully',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid or expired refresh token',
+  })
+  async refreshTokens(
+    @Body() dto: RefreshTokenDto,
+    @Ip() ipAddress: string,
+    @Req() req: Request,
+  ): Promise<AuthResponseDto> {
+    const userAgent = req.headers['user-agent'];
+    return this.authService.refreshTokens(dto, ipAddress, userAgent);
+  }
+
+  @Public()
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Logout from current session' })
+  @ApiResponse({
+    status: 200,
+    description: 'Logged out successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Logged out successfully',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid refresh token',
+  })
+  async logout(@Body() dto: RefreshTokenDto): Promise<{ message: string }> {
+    return this.authService.logout(dto.refreshToken);
+  }
+
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Logout from all devices' })
+  @ApiResponse({
+    status: 200,
+    description: 'Logged out from all devices successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Logged out from all devices successfully',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async logoutAllDevices(
+    @CurrentUser() user: JwtUser,
+  ): Promise<{ message: string }> {
+    return this.authService.logoutAllDevices(user.id);
+  }
+
+  @Get('sessions')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all active sessions for current user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Sessions retrieved successfully',
+    type: [SessionResponseDto],
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async getSessions(
+    @CurrentUser() user: JwtUser,
+    @Body() dto?: RefreshTokenDto,
+  ): Promise<SessionResponseDto[]> {
+    return this.authService.getSessions(user.id, dto?.refreshToken);
   }
 }

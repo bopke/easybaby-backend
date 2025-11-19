@@ -16,6 +16,9 @@ export default () => ({
     issuer: process.env.JWT_ISSUER || 'workshops-api',
     audience: process.env.JWT_AUDIENCE || 'workshops-api',
   },
+  refreshToken: {
+    secret: process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
+  },
   email: {
     brevoApiKey: process.env.BREVO_API_KEY,
     defaultSenderEmail: process.env.DEFAULT_SENDER_EMAIL,

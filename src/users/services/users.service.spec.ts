@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { User } from '../entities/user.entity';
 import { UserRole } from '../entities/enums';
+import { mockUser, createMockUser } from '../mocks';
 import { CreateUserDto, UpdateUserDto } from '../dtos';
 
 jest.mock('bcrypt');
@@ -17,17 +18,6 @@ describe('UsersService', () => {
   let findSpy: jest.SpyInstance;
   let saveSpy: jest.SpyInstance;
   let removeSpy: jest.SpyInstance;
-
-  const mockUser: User = {
-    id: '123e4567-e89b-12d3-a456-426614174000',
-    email: 'test@example.com',
-    password: 'hashedPassword123',
-    role: UserRole.NORMAL,
-    emailVerificationCode: 'ABC123',
-    isEmailVerified: false,
-    createdAt: new Date('2024-01-15T10:30:00.000Z'),
-    updatedAt: new Date('2024-01-15T10:30:00.000Z'),
-  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -63,7 +53,7 @@ describe('UsersService', () => {
     it('should return an array of users', async () => {
       const users = [
         mockUser,
-        { ...mockUser, id: '2', email: 'user2@test.com' },
+        createMockUser({ id: '2', email: 'user2@test.com' }),
       ];
       findSpy.mockResolvedValue(users);
 
@@ -136,7 +126,7 @@ describe('UsersService', () => {
     };
 
     it('should update a user', async () => {
-      const updatedUser = { ...mockUser, ...updateUserDto };
+      const updatedUser = createMockUser(updateUserDto);
       findOneSpy.mockResolvedValueOnce(mockUser).mockResolvedValueOnce(null);
       saveSpy.mockResolvedValue(updatedUser);
 
@@ -146,10 +136,7 @@ describe('UsersService', () => {
       expect(findOneSpy).toHaveBeenCalledWith({
         where: { email: updateUserDto.email },
       });
-      expect(saveSpy).toHaveBeenCalledWith({
-        ...mockUser,
-        ...updateUserDto,
-      });
+      expect(saveSpy).toHaveBeenCalledWith(createMockUser(updateUserDto));
       expect(result).toEqual(updatedUser);
     });
 
@@ -161,10 +148,8 @@ describe('UsersService', () => {
 
       findOneSpy.mockResolvedValue(mockUser);
       (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
-      saveSpy.mockResolvedValue({
-        ...mockUser,
-        password: hashedPassword,
-      });
+      const updatedMockUser = { ...mockUser, password: hashedPassword };
+      saveSpy.mockResolvedValue(updatedMockUser);
 
       const result = await service.update(mockUser.id, updateWithPassword);
 
@@ -191,7 +176,7 @@ describe('UsersService', () => {
     });
 
     it('should throw ConflictException if email already exists', async () => {
-      const existingUser = { ...mockUser, id: 'another-id' };
+      const existingUser = createMockUser({ id: 'another-id' });
       const updateDtoWithNewEmail: UpdateUserDto = {
         email: 'newemail@example.com',
       };
@@ -375,7 +360,7 @@ describe('UsersService', () => {
 
   describe('verifyEmail', () => {
     it('should verify email when code matches', async () => {
-      const verifiedUser = { ...mockUser, isEmailVerified: true };
+      const verifiedUser = createMockUser({ isEmailVerified: true });
 
       findOneSpy.mockResolvedValue(mockUser);
       saveSpy.mockResolvedValue(verifiedUser);

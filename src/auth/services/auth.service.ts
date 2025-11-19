@@ -14,10 +14,13 @@ import {
   AuthResponseDto,
   ResendVerificationEmailDto,
   VerifyEmailDto,
+  RefreshTokenDto,
+  SessionResponseDto,
 } from '../dtos';
 import { UserResponseDto } from '../../users/dtos';
 import { JwtPayload } from '../strategies/jwt.strategy';
 import { EmailService } from '../../email/services/email.service';
+import { RefreshTokenService } from './refresh-token.service';
 
 @Injectable()
 export class AuthService {
@@ -28,9 +31,14 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
-  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+  async login(
+    loginDto: LoginDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<AuthResponseDto> {
     const user = await this.validateUser(loginDto.email, loginDto.password);
 
     if (!user) {
@@ -47,12 +55,22 @@ export class AuthService {
     const accessToken = this.jwtService.sign(payload);
     const expiresIn = 3600; // 1 hour
 
+    // Generate refresh token
+    const { token: refreshToken, expiresIn: refreshTokenExpiresIn } =
+      await this.refreshTokenService.generateRefreshToken(
+        user,
+        ipAddress,
+        userAgent,
+      );
+
     this.logger.log(`User ${user.email} logged in successfully`);
 
     return new AuthResponseDto(
       accessToken,
       UserResponseDto.fromEntity(user),
       expiresIn,
+      refreshToken,
+      refreshTokenExpiresIn,
     );
   }
 
@@ -134,5 +152,106 @@ export class AuthService {
     this.logger.log(`Email verified successfully for ${user.email}`);
 
     return { message: 'Email verified successfully' };
+  }
+
+  /**
+   * Refresh access token using refresh token
+   */
+  async refreshTokens(
+    dto: RefreshTokenDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<AuthResponseDto> {
+    // Validate and rotate refresh token
+    const user = await this.usersService.findOne(
+      (
+        await this.refreshTokenService.validateRefreshToken(
+          dto.refreshToken,
+          ipAddress,
+          userAgent,
+        )
+      ).sub,
+    );
+
+    // Rotate the refresh token (issue new one, revoke old one)
+    const { token: newRefreshToken, expiresIn: refreshTokenExpiresIn } =
+      await this.refreshTokenService.rotateRefreshToken(
+        dto.refreshToken,
+        user,
+        ipAddress,
+        userAgent,
+      );
+
+    // Generate new access token
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      iss: this.configService.get<string>('jwt.issuer'),
+      aud: this.configService.get<string>('jwt.audience'),
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const expiresIn = 3600; // 1 hour
+
+    this.logger.log(`Tokens refreshed for user ${user.email}`);
+
+    return new AuthResponseDto(
+      accessToken,
+      UserResponseDto.fromEntity(user),
+      expiresIn,
+      newRefreshToken,
+      refreshTokenExpiresIn,
+    );
+  }
+
+  /**
+   * Logout from current session (revoke refresh token)
+   */
+  async logout(refreshToken: string): Promise<{ message: string }> {
+    const payload =
+      await this.refreshTokenService.validateRefreshToken(refreshToken);
+    await this.refreshTokenService.revokeTokenByJti(payload.jti);
+
+    this.logger.log(`User ${payload.sub} logged out from current session`);
+
+    return { message: 'Logged out successfully' };
+  }
+
+  /**
+   * Logout from all devices (revoke all refresh tokens)
+   */
+  async logoutAllDevices(userId: string): Promise<{ message: string }> {
+    await this.refreshTokenService.revokeAllUserTokens(userId);
+
+    this.logger.log(`User ${userId} logged out from all devices`);
+
+    return { message: 'Logged out from all devices successfully' };
+  }
+
+  /**
+   * Get all active sessions for a user
+   */
+  async getSessions(
+    userId: string,
+    currentRefreshToken?: string,
+  ): Promise<SessionResponseDto[]> {
+    const sessions = await this.refreshTokenService.getUserSessions(userId);
+
+    let currentJti: string | undefined;
+    if (currentRefreshToken) {
+      try {
+        const payload =
+          await this.refreshTokenService.validateRefreshToken(
+            currentRefreshToken,
+          );
+        currentJti = payload.jti;
+      } catch {
+        // If validation fails, continue without marking current session
+      }
+    }
+
+    return sessions.map((session) =>
+      SessionResponseDto.fromEntity(session, currentJti),
+    );
   }
 }
