@@ -13,6 +13,7 @@ import { EmailModule } from './email/email.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard, RolesGuard } from './auth/guards';
 import { TrainersModule } from './trainers/trainers.module';
+import { ContactUsModule } from './contact_us/contact_us.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { TrainersModule } from './trainers/trainers.module';
     EmailModule,
     AuthModule,
     TrainersModule,
+    ContactUsModule,
   ],
   controllers: [],
   providers: [

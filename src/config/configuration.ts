@@ -23,5 +23,6 @@ export default () => ({
     brevoApiKey: process.env.BREVO_API_KEY,
     defaultSenderEmail: process.env.DEFAULT_SENDER_EMAIL,
     defaultSenderName: process.env.DEFAULT_SENDER_NAME,
+    contactEmail: process.env.CONTACT_EMAIL,
   },
 });

@@ -16,6 +16,7 @@ export const validationSchema = Joi.object({
   JWT_AUDIENCE: Joi.string().optional(),
   REFRESH_TOKEN_SECRET: Joi.string().optional(),
   BREVO_API_KEY: Joi.string().optional(),
-  DEFAULT_SENDER_EMAIL: Joi.string().required(),
-  DEFAULT_SENDER_NAME: Joi.string().required(),
+  DEFAULT_SENDER_EMAIL: Joi.string().optional(),
+  DEFAULT_SENDER_NAME: Joi.string().optional(),
+  CONTACT_EMAIL: Joi.string().email().optional(),
 });
