@@ -38,8 +38,8 @@ async function bootstrap() {
   const nodeEnv = configService.get<string>('nodeEnv');
   if (nodeEnv !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('Workshops API')
-      .setDescription('The Workshops API documentation')
+      .setTitle('Easybaby API')
+      .setDescription('The Easybaby API documentation')
       .setVersion('1.0')
       .addBearerAuth()
       .build();

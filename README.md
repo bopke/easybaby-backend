@@ -1,4 +1,4 @@
-# Workshops
+# Easybaby Backend
 
 Backend for easybaby project. Built with goodness of NestJS with TypeORM.
 

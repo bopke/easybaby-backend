@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Workshops API built with NestJS TypeScript - a Node.js framework for building efficient and scalable server-side applications. The project implements:
+This is a Easybaby API built with NestJS TypeScript - a Node.js framework for building efficient and scalable server-side applications. The project implements:
 - **Authentication**: JWT-based authentication with Passport, including refresh token rotation
 - **Session Management**: Multi-device session tracking with pagination, filtering, and ordering
 - **Database**: PostgreSQL with TypeORM for data persistence
@@ -169,8 +169,8 @@ module/
   - `PORT` (default: 3000)
   - `CORS_ORIGIN` (default: '*')
   - `DATABASE_PORT` (default: 5432)
-  - `JWT_ISSUER` (default: 'workshops-api')
-  - `JWT_AUDIENCE` (default: 'workshops-api')
+  - `JWT_ISSUER` (default: 'easybaby-api')
+  - `JWT_AUDIENCE` (default: 'easybaby-api')
   - `REFRESH_TOKEN_SECRET` (default: uses `JWT_SECRET`)
   - `BREVO_API_KEY` (optional, for email functionality)
 

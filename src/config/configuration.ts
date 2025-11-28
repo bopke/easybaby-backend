@@ -13,8 +13,8 @@ export default () => ({
   },
   jwt: {
     secret: process.env.JWT_SECRET,
-    issuer: process.env.JWT_ISSUER || 'workshops-api',
-    audience: process.env.JWT_AUDIENCE || 'workshops-api',
+    issuer: process.env.JWT_ISSUER || 'easybaby-api',
+    audience: process.env.JWT_AUDIENCE || 'easybaby-api',
   },
   refreshToken: {
     secret: process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
