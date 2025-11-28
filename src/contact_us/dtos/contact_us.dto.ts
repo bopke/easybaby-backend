@@ -1,7 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsNotDisposableEmail } from '../../common/validators/is-not-disposable-email.validator';
 
 export class ContactUsDto {
+  @ApiProperty({
+    description: 'Cloudflare Turnstile token for bot protection',
+    example: 'turnstile-token-from-frontend',
+  })
+  @IsNotEmpty()
+  @IsString()
+  turnstileToken: string;
+
   @ApiProperty({
     description: 'Name of the person contacting us',
     example: 'John Doe',
@@ -18,6 +27,9 @@ export class ContactUsDto {
   })
   @IsNotEmpty()
   @IsEmail()
+  @IsNotDisposableEmail({
+    message: 'Disposable email addresses are not allowed',
+  })
   email: string;
 
   @ApiProperty({

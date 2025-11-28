@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ContactUsController } from './contact_us.controller';
 import { ContactUsService } from '../services/contact_us.service';
 import { ContactUsDto } from '../dtos';
+import { TurnstileService } from '../../common/services/turnstile.service';
 
 describe('ContactUsController', () => {
   let controller: ContactUsController;
@@ -11,6 +12,10 @@ describe('ContactUsController', () => {
     submitContactForm: jest.fn(),
   };
 
+  const mockTurnstileService = {
+    verifyToken: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ContactUsController],
@@ -18,6 +23,10 @@ describe('ContactUsController', () => {
         {
           provide: ContactUsService,
           useValue: mockContactUsService,
+        },
+        {
+          provide: TurnstileService,
+          useValue: mockTurnstileService,
         },
       ],
     }).compile();
@@ -32,6 +41,7 @@ describe('ContactUsController', () => {
 
   describe('submitContactForm', () => {
     const contactUsDto: ContactUsDto = {
+      turnstileToken: 'test-turnstile-token',
       name: 'John Doe',
       email: 'john.doe@example.com',
       message: 'I would like to know more about your workshops.',

@@ -25,4 +25,7 @@ export default () => ({
     defaultSenderName: process.env.DEFAULT_SENDER_NAME,
     contactEmail: process.env.CONTACT_EMAIL,
   },
+  turnstile: {
+    secretKey: process.env.TURNSTILE_SECRET_KEY,
+  },
 });

@@ -69,6 +69,7 @@ describe('ContactUsService', () => {
 
   describe('submitContactForm', () => {
     const contactUsDto: ContactUsDto = {
+      turnstileToken: 'test-turnstile-token',
       name: 'John Doe',
       email: 'john.doe@example.com',
       message: 'I would like to know more about your workshops.',

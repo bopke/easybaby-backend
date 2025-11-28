@@ -19,4 +19,5 @@ export const validationSchema = Joi.object({
   DEFAULT_SENDER_EMAIL: Joi.string().optional(),
   DEFAULT_SENDER_NAME: Joi.string().optional(),
   CONTACT_EMAIL: Joi.string().email().optional(),
+  TURNSTILE_SECRET_KEY: Joi.string().optional(),
 });

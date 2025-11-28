@@ -41,6 +41,7 @@ services:
       DEFAULT_SENDER_EMAIL: noreply@bopke.dev
       DEFAULT_SENDER_NAME: someone
       CONTACT_EMAIL: contact@bopke.dev
+      TURNSTILE_SECRET_KEY: changeme-turnstile
     healthcheck:
       test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/health']
       interval: 30s
