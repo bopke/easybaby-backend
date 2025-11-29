@@ -526,7 +526,6 @@ describe('AuthService', () => {
 
       expect(result.data).toHaveLength(2);
       expect(result.data[0]).toHaveProperty('id', 'session-1');
-      expect(result.data[0]).toHaveProperty('isCurrent', false);
       expect(result.data[1]).toHaveProperty('id', 'session-2');
       expect(result.total).toBe(2);
       expect(result.page).toBe(1);
@@ -537,43 +536,6 @@ describe('AuthService', () => {
         {},
         {},
       );
-    });
-
-    it('should mark current session when refresh token is provided', async () => {
-      const mockSessions = [
-        createMockRefreshToken({
-          id: 'session-1',
-          jti: 'jti-1',
-          tokenFamily: 'family-1',
-        }),
-      ];
-
-      const mockPayload = {
-        sub: mockUser.id,
-        jti: 'jti-1',
-        type: 'refresh' as const,
-        family: 'family-1',
-      };
-
-      jest.spyOn(refreshTokenService, 'getUserSessions').mockResolvedValue({
-        data: mockSessions,
-        total: 1,
-        page: 1,
-        limit: 10,
-      });
-      jest
-        .spyOn(refreshTokenService, 'validateRefreshToken')
-        .mockResolvedValue(mockPayload);
-
-      const result = await service.getSessions(
-        mockUser.id,
-        { page: 1, limit: 10 },
-        {},
-        {},
-        'valid.refresh.token',
-      );
-
-      expect(result.data[0]).toHaveProperty('isCurrent', true);
     });
   });
 });

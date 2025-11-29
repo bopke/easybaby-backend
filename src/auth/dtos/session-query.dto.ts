@@ -90,14 +90,4 @@ export class SessionQueryDto {
     },
   )
   order?: string[];
-
-  // Optional refresh token to mark current session
-  @ApiPropertyOptional({
-    description:
-      'Optional refresh token to mark the current session in the response',
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-  })
-  @IsOptional()
-  @IsString()
-  refreshToken?: string;
 }

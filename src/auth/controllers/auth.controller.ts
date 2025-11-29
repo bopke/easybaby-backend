@@ -267,14 +267,13 @@ export class AuthController {
     @CurrentUser() user: JwtUser,
     @Query() query: SessionQueryDto,
   ): Promise<Paginated<SessionResponseDto>> {
-    const { page = 1, limit = 10, order, refreshToken, ...filters } = query;
+    const { page = 1, limit = 10, order, ...filters } = query;
 
     return this.authService.getSessions(
       user.id,
       { page, limit },
       filters,
       { order },
-      refreshToken,
     );
   }
 }

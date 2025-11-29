@@ -41,16 +41,7 @@ export class SessionResponseDto {
   })
   expiresAt: Date;
 
-  @ApiProperty({
-    description: 'Whether this is the current session',
-    example: true,
-  })
-  isCurrent: boolean;
-
-  static fromEntity(
-    refreshToken: RefreshToken,
-    currentJti?: string,
-  ): SessionResponseDto {
+  static fromEntity(refreshToken: RefreshToken): SessionResponseDto {
     return {
       id: refreshToken.id,
       ipAddress: refreshToken.ipAddress,
@@ -58,7 +49,6 @@ export class SessionResponseDto {
       createdAt: refreshToken.createdAt,
       lastUsedAt: refreshToken.lastUsedAt,
       expiresAt: refreshToken.expiresAt,
-      isCurrent: refreshToken.jti === currentJti,
     };
   }
 }

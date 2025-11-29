@@ -241,7 +241,6 @@ export class AuthService {
       tokenFamily?: string;
     } = {},
     ordering: { order?: string[] } = {},
-    currentRefreshToken?: string,
   ): Promise<Paginated<SessionResponseDto>> {
     const result = await this.refreshTokenService.getUserSessions(
       userId,
@@ -250,23 +249,10 @@ export class AuthService {
       ordering,
     );
 
-    let currentJti: string | undefined;
-    if (currentRefreshToken) {
-      try {
-        const payload =
-          await this.refreshTokenService.validateRefreshToken(
-            currentRefreshToken,
-          );
-        currentJti = payload.jti;
-      } catch {
-        // If validation fails, continue without marking current session
-      }
-    }
-
     return {
       ...result,
       data: result.data.map((session) =>
-        SessionResponseDto.fromEntity(session, currentJti),
+        SessionResponseDto.fromEntity(session),
       ),
     };
   }

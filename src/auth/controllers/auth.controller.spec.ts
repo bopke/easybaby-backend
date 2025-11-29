@@ -428,7 +428,6 @@ describe('AuthController', () => {
           createdAt: new Date(),
           lastUsedAt: null,
           expiresAt: new Date(Date.now() + 86400000),
-          isCurrent: true,
         },
         {
           id: 'session-2',
@@ -437,7 +436,6 @@ describe('AuthController', () => {
           createdAt: new Date(),
           lastUsedAt: new Date(),
           expiresAt: new Date(Date.now() + 86400000),
-          isCurrent: false,
         },
       ];
 
@@ -461,55 +459,8 @@ describe('AuthController', () => {
         { page: 1, limit: 10 },
         {},
         { order: undefined },
-        undefined,
       );
       expect(getSessionsSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return sessions with current session marked', async () => {
-      const mockUser = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        email: 'test@example.com',
-      };
-
-      const query = {
-        refreshToken: 'current.refresh.token',
-      };
-
-      const mockSessionData: SessionResponseDto[] = [
-        {
-          id: 'session-1',
-          ipAddress: '192.168.1.1',
-          userAgent: 'Mozilla/5.0',
-          createdAt: new Date(),
-          lastUsedAt: null,
-          expiresAt: new Date(Date.now() + 86400000),
-          isCurrent: true,
-        },
-      ];
-
-      const mockResponse = {
-        data: mockSessionData,
-        total: 1,
-        page: 1,
-        limit: 10,
-      };
-
-      const getSessionsSpy = jest
-        .spyOn(authService, 'getSessions')
-        .mockResolvedValue(mockResponse);
-
-      const result = await controller.getSessions(mockUser, query);
-
-      expect(result).toEqual(mockResponse);
-      expect(result.data[0].isCurrent).toBe(true);
-      expect(getSessionsSpy).toHaveBeenCalledWith(
-        mockUser.id,
-        { page: 1, limit: 10 },
-        {},
-        { order: undefined },
-        'current.refresh.token',
-      );
     });
   });
 });
