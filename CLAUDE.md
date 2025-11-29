@@ -178,15 +178,16 @@ module/
 - **Environment Variables**: Loaded via `@nestjs/config` with validation
 - **Validation**: Joi schema validates all required env vars on startup
 - **Configuration File**: `src/config/configuration.ts` exports typed config object
+- **Environment Template**: `.env.example` provides a template with all required and optional variables
 - **Required Env Vars**:
   - `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_NAME`: PostgreSQL connection details
   - `JWT_SECRET`: Secret key for JWT signing
+  - `CORS_ORIGIN`: Comma-separated list of allowed origins (e.g., `http://localhost:3001,http://localhost:5173`)
   - `DEFAULT_SENDER_EMAIL`, `DEFAULT_SENDER_NAME`: Email configuration
   - `TURNSTILE_SECRET_KEY`: Cloudflare Turnstile secret key for bot protection
 - **Optional Env Vars** (with defaults):
   - `NODE_ENV` (default: 'development')
   - `PORT` (default: 3000)
-  - `CORS_ORIGIN` (default: '*')
   - `DATABASE_PORT` (default: 5432)
   - `JWT_ISSUER` (default: 'easybaby-api')
   - `JWT_AUDIENCE` (default: 'easybaby-api')
