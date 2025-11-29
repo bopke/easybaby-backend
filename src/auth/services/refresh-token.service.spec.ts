@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException, Logger } from '@nestjs/common';
 import { mockUser } from '../../users/mocks';
 import { createMockRefreshToken } from '../mocks';
+import { PaginationService } from '../../common/services/pagination.service';
 
 describe('RefreshTokenService', () => {
   let service: RefreshTokenService;
@@ -56,6 +57,7 @@ describe('RefreshTokenService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RefreshTokenService,
+        PaginationService,
         {
           provide: getRepositoryToken(RefreshToken),
           useValue: mockRefreshTokenRepository,

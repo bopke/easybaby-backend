@@ -11,6 +11,7 @@ import {
   OrderTrainerDto,
 } from '../dtos';
 import { mockTrainer } from '../mocks';
+import { PaginationService } from '../../common/services/pagination.service';
 
 describe('TrainersService', () => {
   let service: TrainersService;
@@ -24,6 +25,7 @@ describe('TrainersService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TrainersService,
+        PaginationService,
         {
           provide: getRepositoryToken(Trainer),
           useValue: {

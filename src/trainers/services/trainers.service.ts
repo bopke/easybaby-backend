@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike, FindOptionsWhere, FindOptionsOrder } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Trainer } from '../entities';
 import {
   CreateTrainerDto,
@@ -9,12 +9,14 @@ import {
   OrderTrainerDto,
 } from '../dtos';
 import { Paginated, Pagination } from '../../common/pagination';
+import { PaginationService } from '../../common/services/pagination.service';
 
 @Injectable()
 export class TrainersService {
   constructor(
     @InjectRepository(Trainer)
     private readonly trainersRepository: Repository<Trainer>,
+    private readonly paginationService: PaginationService,
   ) {}
 
   async findAll(
@@ -23,73 +25,35 @@ export class TrainersService {
     ordering: OrderTrainerDto = {},
   ): Promise<Paginated<Trainer>> {
     const { page, limit } = pagination;
-    const where = this.buildWhereClause(filters);
-    const order = this.buildOrderClause(ordering);
+
+    const stringFields: (keyof Trainer)[] = [
+      'name',
+      'voivodeship',
+      'city',
+      'email',
+      'site',
+      'phone',
+      'additionalOffer',
+      'notes',
+    ];
+
+    const where = this.paginationService.buildWhereClause<Trainer>(
+      filters as Record<string, unknown>,
+      stringFields,
+    );
+    const order = this.paginationService.buildOrderClause<Trainer>(
+      ordering.order,
+      { createdAt: 'DESC' },
+    );
 
     const [trainers, total] = await this.trainersRepository.findAndCount({
       where,
       order,
-      skip: (page - 1) * limit,
+      skip: this.paginationService.calculateSkip(page, limit),
       take: limit,
     });
-    return { data: trainers, total: total, page, limit };
-  }
 
-  private buildWhereClause(
-    filters: FilterTrainerDto,
-  ): FindOptionsWhere<Trainer> {
-    const where: FindOptionsWhere<Trainer> = {};
-
-    // String filters - use ILike for case-insensitive partial matching
-    if (filters.name) {
-      where.name = ILike(`%${filters.name}%`);
-    }
-    if (filters.voivodeship) {
-      where.voivodeship = ILike(`%${filters.voivodeship}%`);
-    }
-    if (filters.city) {
-      where.city = ILike(`%${filters.city}%`);
-    }
-    if (filters.email) {
-      where.email = ILike(`%${filters.email}%`);
-    }
-    if (filters.site) {
-      where.site = ILike(`%${filters.site}%`);
-    }
-    if (filters.phone) {
-      where.phone = ILike(`%${filters.phone}%`);
-    }
-    if (filters.additionalOffer) {
-      where.additionalOffer = ILike(`%${filters.additionalOffer}%`);
-    }
-    if (filters.notes) {
-      where.notes = ILike(`%${filters.notes}%`);
-    }
-    if (filters.isVerified !== undefined) {
-      where.isVerified = filters.isVerified;
-    }
-
-    return where;
-  }
-
-  private buildOrderClause(
-    ordering: OrderTrainerDto,
-  ): FindOptionsOrder<Trainer> {
-    const order: FindOptionsOrder<Trainer> = {};
-
-    if (ordering.order && ordering.order.length > 0) {
-      for (const orderStr of ordering.order) {
-        const [field, direction] = orderStr.split(':');
-        order[field as keyof Trainer] = direction.toUpperCase() as
-          | 'ASC'
-          | 'DESC';
-      }
-    } else {
-      // Default order by createdAt descending
-      order.createdAt = 'DESC';
-    }
-
-    return order;
+    return { data: trainers, total, page, limit };
   }
 
   async findOne(id: string): Promise<Trainer> {

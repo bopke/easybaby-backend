@@ -11,6 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../email/email.module';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { PaginationService } from '../common/services/pagination.service';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { RefreshToken } from './entities/refresh-token.entity';
     RefreshTokenService,
     ScheduledTasksService,
     JwtStrategy,
+    PaginationService,
   ],
   exports: [AuthService],
 })

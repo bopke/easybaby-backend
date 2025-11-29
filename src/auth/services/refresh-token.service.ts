@@ -1,19 +1,13 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  LessThan,
-  ILike,
-  FindOptionsWhere,
-  FindOptionsOrder,
-  DataSource,
-} from 'typeorm';
+import { Repository, LessThan, DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { User } from '../../users/entities/user.entity';
 import { Paginated, Pagination } from '../../common/pagination';
+import { PaginationService } from '../../common/services/pagination.service';
 
 export interface RefreshTokenPayload {
   sub: string; // user ID
@@ -32,6 +26,7 @@ export class RefreshTokenService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
+    private readonly paginationService: PaginationService,
   ) {}
 
   /**
@@ -307,64 +302,28 @@ export class RefreshTokenService {
     ordering: { order?: string[] } = {},
   ): Promise<Paginated<RefreshToken>> {
     const { page, limit } = pagination;
-    const where = this.buildWhereClauseForSessions(userId, filters);
-    const order = this.buildOrderClauseForSessions(ordering);
+
+    const stringFields: (keyof RefreshToken)[] = ['ipAddress', 'userAgent'];
+
+    const where = this.paginationService.buildWhereClause<RefreshToken>(
+      filters as Record<string, unknown>,
+      stringFields,
+      { userId, isRevoked: false },
+    );
+
+    const order = this.paginationService.buildOrderClause<RefreshToken>(
+      ordering.order,
+      { createdAt: 'DESC' },
+    );
 
     const [sessions, total] = await this.refreshTokenRepository.findAndCount({
       where,
       order,
-      skip: (page - 1) * limit,
+      skip: this.paginationService.calculateSkip(page, limit),
       take: limit,
     });
 
     return { data: sessions, total, page, limit };
-  }
-
-  private buildWhereClauseForSessions(
-    userId: string,
-    filters: {
-      ipAddress?: string;
-      userAgent?: string;
-      tokenFamily?: string;
-    },
-  ): FindOptionsWhere<RefreshToken> {
-    const where: FindOptionsWhere<RefreshToken> = {
-      userId,
-      isRevoked: false,
-    };
-
-    // String filters - use ILike for case-insensitive partial matching
-    if (filters.ipAddress) {
-      where.ipAddress = ILike(`%${filters.ipAddress}%`);
-    }
-    if (filters.userAgent) {
-      where.userAgent = ILike(`%${filters.userAgent}%`);
-    }
-    if (filters.tokenFamily) {
-      where.tokenFamily = filters.tokenFamily;
-    }
-
-    return where;
-  }
-
-  private buildOrderClauseForSessions(ordering: {
-    order?: string[];
-  }): FindOptionsOrder<RefreshToken> {
-    const order: FindOptionsOrder<RefreshToken> = {};
-
-    if (ordering.order && ordering.order.length > 0) {
-      for (const orderStr of ordering.order) {
-        const [field, direction] = orderStr.split(':');
-        order[field as keyof RefreshToken] = direction.toUpperCase() as
-          | 'ASC'
-          | 'DESC';
-      }
-    } else {
-      // Default order by createdAt descending
-      order.createdAt = 'DESC';
-    }
-
-    return order;
   }
 
   /**
