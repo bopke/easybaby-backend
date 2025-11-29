@@ -62,6 +62,7 @@ npm run migration:show      # Show migration status
 - **AuthModule**: JWT authentication, refresh tokens, session management, scheduled cleanup tasks
 - **UsersModule**: User management and CRUD operations
 - **TrainersModule**: Trainers catalog with public CRUD operations and pagination
+- **ContactUsModule**: Public contact form with anti-spam protection (Turnstile, rate limiting, disposable email blocking)
 - **EmailModule**: Email sending via Brevo API
 - **HealthModule**: Health checks for the application and database
 
@@ -109,11 +110,12 @@ module/
 - `src/main.ts`: Application entry point, bootstraps NestJS app, configures Swagger
 - `src/app.module.ts`: Root module with global configurations
 - `src/config/`: Configuration files (environment variables, TypeORM, validation)
-- `src/common/`: Shared utilities, filters, interceptors
+- `src/common/`: Shared utilities, filters, interceptors, guards, validators
 - `src/migrations/`: TypeORM database migrations
 - `src/auth/`: Authentication module (JWT, guards, strategies)
 - `src/users/`: User management module
 - `src/trainers/`: Trainers catalog module (public CRUD)
+- `src/contact_us/`: Contact form module (public, spam-protected)
 - `src/email/`: Email service module
 - `src/health/`: Health check module
 - `docs/`: Project documentation
@@ -135,6 +137,22 @@ module/
   - Auto-generated: id (UUID), createdAt, updatedAt
 - **Endpoints**: Standard CRUD operations (GET /trainers, POST /trainers, PATCH /trainers/:id, DELETE /trainers/:id)
 - **CSV Import**: Initial data can be populated from `trainers.csv`
+
+### ContactUs Module
+- **Purpose**: Public contact form with comprehensive anti-spam protection
+- **Authentication**: Public endpoint (marked with `@Public()` decorator)
+- **Security Features**:
+  - **Cloudflare Turnstile**: Bot protection with backend token verification
+  - **Rate Limiting**: 3 submissions per hour per IP (overrides global 60/min limit)
+  - **Email Validation**: Blocks 4000+ known disposable/temporary email domains
+- **Entity Fields**:
+  - Required: name, email, message, turnstileToken (DTO only, not stored)
+  - Auto-generated: id (UUID), createdAt, updatedAt
+- **Endpoints**: POST /contact-us
+- **Response Codes**: 201 (created), 400 (validation failed), 401 (invalid captcha), 429 (rate limit exceeded)
+- **Workflow**: Save to database → Send email notification via Brevo
+- **Custom Validators**: `@IsNotDisposableEmail()` decorator for email validation
+- **Custom Guards**: `TurnstileGuard` for Cloudflare Turnstile verification
 
 ### Authentication & Authorization
 - **Strategy**: JWT tokens with Passport.js + Refresh Token rotation
@@ -164,6 +182,7 @@ module/
   - `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_NAME`: PostgreSQL connection details
   - `JWT_SECRET`: Secret key for JWT signing
   - `DEFAULT_SENDER_EMAIL`, `DEFAULT_SENDER_NAME`: Email configuration
+  - `TURNSTILE_SECRET_KEY`: Cloudflare Turnstile secret key for bot protection
 - **Optional Env Vars** (with defaults):
   - `NODE_ENV` (default: 'development')
   - `PORT` (default: 3000)
@@ -204,6 +223,7 @@ module/
 - **Centralized Test Mocks**: Use factory functions from `mocks/` directories
   - `src/users/mocks/user.mock.ts`: `createMockUser()`, `mockUser`, `createMockVerifiedUser()`
   - `src/auth/mocks/refresh-token.mock.ts`: `createMockRefreshToken()`, `mockRefreshToken`
+  - `src/contact_us/mocks/contact_us.mock.ts`: `createMockContactUs()`, `mockContactUs`
 - **Logger Suppression**: Suppress logger output in tests using:
   ```typescript
   jest.spyOn(Logger.prototype, 'log').mockImplementation();
@@ -239,6 +259,35 @@ module/
 ### Global Guards
 1. **JwtAuthGuard**: Enforces authentication on all endpoints except those marked `@Public()`
 2. **ThrottlerGuard**: Rate limiting (60 requests per minute per IP)
+
+### Endpoint-Specific Guards
+- **TurnstileGuard** (`src/common/guards/turnstile.guard.ts`): Validates Cloudflare Turnstile tokens for bot protection
+  - Extracts token from request body (`turnstileToken` field)
+  - Extracts IP from multiple sources (req.ip, x-forwarded-for, connection.remoteAddress)
+  - Verifies with Cloudflare API via `TurnstileService`
+  - Returns 401 if token missing or invalid
+  - Used by contact form endpoint with `@UseGuards(TurnstileGuard)`
+
+### Custom Validators
+- **@IsNotDisposableEmail()** (`src/common/validators/is-not-disposable-email.validator.ts`): Blocks disposable email domains
+  - Uses `disposable-email-domains` package (4000+ known domains)
+  - Validates email domain against blocklist
+  - Returns error message: "Disposable email addresses are not allowed"
+  - Used in contact form DTO
+
+### Rate Limiting
+- **Global**: 60 requests per minute per IP via `ThrottlerGuard`
+- **Endpoint-Specific**: Override with `@Throttle()` decorator
+  - Example: Contact form limited to 3 submissions per hour (3600000ms TTL)
+  - Returns 429 status when limit exceeded
+
+### Cloudflare Turnstile
+- **Purpose**: Privacy-friendly CAPTCHA alternative for bot protection
+- **Service**: `TurnstileService` (`src/common/services/turnstile.service.ts`)
+- **Verification Endpoint**: `https://challenges.cloudflare.com/turnstile/v0/siteverify`
+- **Method**: POST with form-urlencoded data (secret, response token, optional remoteip)
+- **Configuration**: Requires `TURNSTILE_SECRET_KEY` environment variable
+- **Usage**: Frontend renders widget, backend verifies token via `TurnstileGuard`
 
 ### CORS
 - Configurable via `CORS_ORIGIN` environment variable
@@ -298,6 +347,67 @@ export class UsersController {
 @Public()  // Bypasses authentication
 @Post('login')
 async login(@Body() dto: LoginDto) { }
+```
+
+### Endpoint-Specific Rate Limiting
+```typescript
+import { Throttle } from '@nestjs/throttler';
+
+@Public()
+@Throttle({ default: { limit: 3, ttl: 60 * 60 * 1000 } })  // 3 requests per hour
+@Post('contact-us')
+async contactUs(@Body() dto: ContactUsDto) { }
+```
+
+### Using Custom Guards
+```typescript
+import { UseGuards } from '@nestjs/common';
+import { TurnstileGuard } from '../../common/guards';
+
+@Public()
+@UseGuards(TurnstileGuard)
+@Post('contact-us')
+async contactUs(@Body() dto: ContactUsDto) { }
+```
+
+### Creating Custom Validators
+```typescript
+import {
+  registerDecorator,
+  ValidationOptions,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+} from 'class-validator';
+
+@ValidatorConstraint({ async: false })
+export class IsNotDisposableEmailConstraint
+  implements ValidatorConstraintInterface
+{
+  validate(email: string): boolean {
+    const domain = email.split('@')[1]?.toLowerCase();
+    return !disposableDomains.includes(domain);
+  }
+
+  defaultMessage(): string {
+    return 'Disposable email addresses are not allowed';
+  }
+}
+
+export function IsNotDisposableEmail(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      constraints: [],
+      validator: IsNotDisposableEmailConstraint,
+    });
+  };
+}
+
+// Usage in DTO
+@IsNotDisposableEmail({ message: 'Disposable email addresses are not allowed' })
+email: string;
 ```
 
 ## NestJS CLI
