@@ -297,7 +297,7 @@ module/
 ### Password Security
 - Passwords hashed with bcrypt (10 salt rounds)
 - Never returned in API responses (excluded from DTOs)
-- Minimum 8 characters enforced via validation
+- Minimum 6 characters enforced via validation
 
 ## Common Patterns
 
@@ -311,9 +311,9 @@ export class CreateUserDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ minLength: 8 })
+  @ApiProperty({ minLength: 6 })
   @IsNotEmpty()
-  @MinLength(8)
+  @MinLength(6)
   password: string;
 }
 ```
