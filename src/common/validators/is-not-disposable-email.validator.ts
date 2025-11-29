@@ -7,9 +7,7 @@ import {
 import disposableDomains from 'disposable-email-domains';
 
 @ValidatorConstraint({ async: false })
-export class IsNotDisposableEmailConstraint
-  implements ValidatorConstraintInterface
-{
+export class IsNotDisposableEmailConstraint implements ValidatorConstraintInterface {
   validate(email: string): boolean {
     if (!email) return false;
 

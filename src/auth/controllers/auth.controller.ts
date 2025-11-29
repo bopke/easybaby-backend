@@ -269,11 +269,8 @@ export class AuthController {
   ): Promise<Paginated<SessionResponseDto>> {
     const { page = 1, limit = 10, order, ...filters } = query;
 
-    return this.authService.getSessions(
-      user.id,
-      { page, limit },
-      filters,
-      { order },
-    );
+    return this.authService.getSessions(user.id, { page, limit }, filters, {
+      order,
+    });
   }
 }

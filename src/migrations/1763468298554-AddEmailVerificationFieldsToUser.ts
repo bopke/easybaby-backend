@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddEmailVerificationFieldsToUser1763468298554
-  implements MigrationInterface
-{
+export class AddEmailVerificationFieldsToUser1763468298554 implements MigrationInterface {
   name = 'AddEmailVerificationFieldsToUser1763468298554';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

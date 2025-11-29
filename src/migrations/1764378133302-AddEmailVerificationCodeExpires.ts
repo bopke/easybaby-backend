@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddEmailVerificationCodeExpires1764378133302
-  implements MigrationInterface
-{
+export class AddEmailVerificationCodeExpires1764378133302 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
             ALTER TABLE "users"
