@@ -1,7 +1,13 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Request } from 'express';
 import { ROLES_KEY } from '../decorators';
 import { UserRole } from '../../users/entities/enums';
+import { User } from '../../users/entities/user.entity';
+
+interface RequestWithUser extends Request {
+  user: User;
+}
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -17,14 +23,13 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const { user } = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const user = request.user;
 
     if (!user) {
       return false;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     return requiredRoles.some((role) => user.role === role);
   }
 }
