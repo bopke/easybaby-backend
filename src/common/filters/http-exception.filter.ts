@@ -52,21 +52,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error = 'Database Error';
       message = 'Database operation failed';
 
+      // Log detailed database error information for debugging
       if (isDatabaseError(exception.driverError)) {
         const dbError = exception.driverError;
+        this.logger.error(
+          `Database error - Code: ${dbError.code}, Detail: ${dbError.detail || 'N/A'}, Query: ${exception.query}`,
+          exception.stack,
+        );
+
+        // Return generic message to avoid exposing schema details
         switch (dbError.code) {
-          case '23505':
-            // Unique constraint violation
-            message = 'A record with this value already exists';
+          case '23505': // Unique constraint violation
+          case '23503': // Foreign key constraint violation
+          case '23502': // Not null violation
+            message = 'Database constraint violation';
             break;
-          case '23503':
-            // Foreign key constraint violation
-            message = 'Referenced record does not exist';
-            break;
-          case '23502':
-            // Not null violation
-            message = 'Required field is missing';
-            break;
+          default:
+            message = 'Database operation failed';
         }
       }
     } else if (exception instanceof Error) {
@@ -74,12 +76,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error = exception.name;
     }
 
-    this.logger.error(
-      `${request.method} ${request.url} - Status: ${status} - Error: ${
-        exception instanceof Error ? exception.message : 'Unknown error'
-      }`,
-      exception instanceof Error ? exception.stack : undefined,
-    );
+    // Log error with request context (skip if already logged for database errors)
+    if (
+      !(
+        exception instanceof QueryFailedError &&
+        isDatabaseError(exception.driverError)
+      )
+    ) {
+      this.logger.error(
+        `${request.method} ${request.url} - Status: ${status} - Error: ${
+          exception instanceof Error ? exception.message : 'Unknown error'
+        }`,
+        exception instanceof Error ? exception.stack : undefined,
+      );
+    }
 
     response.status(status).json({
       statusCode: status,

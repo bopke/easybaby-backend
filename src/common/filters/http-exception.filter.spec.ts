@@ -149,9 +149,13 @@ describe('AllExceptionsFilter', () => {
       expect(mockStatus).toHaveBeenCalledWith(400);
       expect(mockJson).toHaveBeenCalledWith({
         statusCode: 400,
-        message: 'A record with this value already exists',
+        message: 'Database constraint violation',
         error: 'Database Error',
       });
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Database error - Code: 23505'),
+        expect.any(String),
+      );
     });
 
     it('should handle foreign key constraint violation (23503)', () => {
@@ -165,9 +169,13 @@ describe('AllExceptionsFilter', () => {
       expect(mockStatus).toHaveBeenCalledWith(400);
       expect(mockJson).toHaveBeenCalledWith({
         statusCode: 400,
-        message: 'Referenced record does not exist',
+        message: 'Database constraint violation',
         error: 'Database Error',
       });
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Database error - Code: 23503'),
+        expect.any(String),
+      );
     });
 
     it('should handle not null constraint violation (23502)', () => {
@@ -181,9 +189,13 @@ describe('AllExceptionsFilter', () => {
       expect(mockStatus).toHaveBeenCalledWith(400);
       expect(mockJson).toHaveBeenCalledWith({
         statusCode: 400,
-        message: 'Required field is missing',
+        message: 'Database constraint violation',
         error: 'Database Error',
       });
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Database error - Code: 23502'),
+        expect.any(String),
+      );
     });
 
     it('should handle QueryFailedError with unknown code', () => {
@@ -200,6 +212,10 @@ describe('AllExceptionsFilter', () => {
         message: 'Database operation failed',
         error: 'Database Error',
       });
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Database error - Code: 99999'),
+        expect.any(String),
+      );
     });
 
     it('should handle QueryFailedError without driverError', () => {
