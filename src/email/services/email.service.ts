@@ -16,6 +16,10 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly apiInstance: TransactionalEmailsApi;
   private readonly defaultSender: { name: string; email: string };
+  private readonly templateCache = new Map<
+    string,
+    Handlebars.TemplateDelegate
+  >();
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('email.brevoApiKey');
@@ -85,13 +89,18 @@ export class EmailService {
     }
   }
 
-  async sendTemplateMail(
-    templateName: string,
-    to: string,
-    subject: string,
-    context: any,
-  ) {
-    // TODO: Cache templates
+  /**
+   * Get a compiled template from cache or load and compile it
+   * @param templateName Name of the template file (without .hbs extension)
+   * @returns Compiled Handlebars template
+   */
+  private getTemplate(templateName: string): Handlebars.TemplateDelegate {
+    // Check if template is already cached
+    if (this.templateCache.has(templateName)) {
+      return this.templateCache.get(templateName)!;
+    }
+
+    // Load and compile template
     const templatePath = path.join(
       `${__dirname}/../`,
       'templates',
@@ -99,11 +108,26 @@ export class EmailService {
     );
     const templateRaw = fs.readFileSync(templatePath, 'utf8');
     const compiled = Handlebars.compile(templateRaw);
-    const html = compiled(context);
+
+    // Cache the compiled template
+    this.templateCache.set(templateName, compiled);
+    this.logger.log(`Template '${templateName}' compiled and cached`);
+
+    return compiled;
+  }
+
+  async sendTemplateMail(
+    templateName: string,
+    to: string,
+    subject: string,
+    context: Record<string, unknown>,
+  ) {
+    const template = this.getTemplate(templateName);
+    const html = template(context);
 
     return this.sendEmail({
-      to: to,
-      subject: subject,
+      to,
+      subject,
       htmlContent: html,
     });
   }

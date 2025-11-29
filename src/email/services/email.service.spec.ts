@@ -3,8 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { EmailService } from './email.service';
 import { TransactionalEmailsApi } from '@getbrevo/brevo';
 import { SendEmailDto } from '../dtos';
+import * as fs from 'node:fs';
+import { User } from '../../users/entities/user.entity';
+import { UserRole } from '../../users/entities/enums';
 
 jest.mock('@getbrevo/brevo');
+jest.mock('node:fs');
 
 interface SentEmail {
   to?: Array<{ email: string }>;
@@ -212,6 +216,161 @@ describe('EmailService', () => {
       );
 
       loggerErrorSpy.mockRestore();
+    });
+  });
+
+  describe('sendTemplateMail', () => {
+    const mockTemplateContent = '<h1>Hello {{user.email}}</h1>';
+    const mockUser: User = {
+      id: '123',
+      email: 'test@example.com',
+      password: 'hashedpassword',
+      role: UserRole.NORMAL,
+      emailVerificationCode: 'ABC123',
+      isEmailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    beforeEach(() => {
+      // Mock fs.readFileSync to return template content
+      (fs.readFileSync as jest.Mock).mockReturnValue(mockTemplateContent);
+
+      mockApiInstance.sendTransacEmail.mockResolvedValue({
+        body: {
+          messageId: 'test-message-id',
+        },
+      });
+    });
+
+    it('should load and compile template on first call', async () => {
+      await service.sendTemplateMail(
+        'registration',
+        'test@example.com',
+        'Welcome!',
+        { user: mockUser },
+      );
+
+      expect(fs.readFileSync).toHaveBeenCalledTimes(1);
+      expect(fs.readFileSync).toHaveBeenCalledWith(
+        expect.stringContaining('registration.hbs'),
+        'utf8',
+      );
+      expect(mockApiInstance.sendTransacEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: [{ email: 'test@example.com' }],
+          subject: 'Welcome!',
+          htmlContent: '<h1>Hello test@example.com</h1>',
+        }),
+      );
+    });
+
+    it('should use cached template on subsequent calls', async () => {
+      // First call - loads and compiles
+      await service.sendTemplateMail(
+        'registration',
+        'user1@example.com',
+        'Welcome!',
+        { user: { ...mockUser, email: 'user1@example.com' } },
+      );
+
+      expect(fs.readFileSync).toHaveBeenCalledTimes(1);
+
+      // Second call - uses cache
+      await service.sendTemplateMail(
+        'registration',
+        'user2@example.com',
+        'Welcome!',
+        { user: { ...mockUser, email: 'user2@example.com' } },
+      );
+
+      // fs.readFileSync should still only be called once
+      expect(fs.readFileSync).toHaveBeenCalledTimes(1);
+
+      // Both emails should be sent with correct content
+      expect(mockApiInstance.sendTransacEmail).toHaveBeenCalledTimes(2);
+      expect(mockApiInstance.sendTransacEmail).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          htmlContent: '<h1>Hello user1@example.com</h1>',
+        }),
+      );
+      expect(mockApiInstance.sendTransacEmail).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          htmlContent: '<h1>Hello user2@example.com</h1>',
+        }),
+      );
+    });
+
+    it('should cache different templates separately', async () => {
+      await service.sendTemplateMail(
+        'registration',
+        'test@example.com',
+        'Welcome!',
+        { user: mockUser },
+      );
+
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        '<p>Password reset: {{token}}</p>',
+      );
+
+      await service.sendTemplateMail(
+        'password-reset',
+        'test@example.com',
+        'Reset Password',
+        { token: 'abc123' },
+      );
+
+      // Should have read two different templates
+      expect(fs.readFileSync).toHaveBeenCalledTimes(2);
+      expect(fs.readFileSync).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('registration.hbs'),
+        'utf8',
+      );
+      expect(fs.readFileSync).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('password-reset.hbs'),
+        'utf8',
+      );
+    });
+  });
+
+  describe('sendRegistrationEmail', () => {
+    const mockUser: User = {
+      id: '123',
+      email: 'newuser@example.com',
+      password: 'hashedpassword',
+      role: UserRole.NORMAL,
+      emailVerificationCode: 'ABC123',
+      isEmailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    beforeEach(() => {
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        '<h1>Welcome {{user.email}}</h1>',
+      );
+
+      mockApiInstance.sendTransacEmail.mockResolvedValue({
+        body: {
+          messageId: 'test-message-id',
+        },
+      });
+    });
+
+    it('should send registration email with correct template and context', async () => {
+      await service.sendRegistrationEmail(mockUser);
+
+      expect(mockApiInstance.sendTransacEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: [{ email: 'newuser@example.com' }],
+          subject: 'Welcome to the app!',
+          htmlContent: '<h1>Welcome newuser@example.com</h1>',
+        }),
+      );
     });
   });
 });
