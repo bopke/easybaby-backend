@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity('trainers')
@@ -12,12 +13,15 @@ export class Trainer {
   id: string;
 
   @Column()
+  @Index()
   name: string;
 
   @Column()
+  @Index()
   voivodeship: string;
 
   @Column()
+  @Index()
   city: string;
 
   @Column()
