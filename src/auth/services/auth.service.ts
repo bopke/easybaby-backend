@@ -88,13 +88,12 @@ export class AuthService {
     try {
       await this.emailService.sendRegistrationEmail(user);
     } catch (emailError) {
-      // If email fails, ensure user is deleted in a transaction
+      // If email fails, ensure user is deleted
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
       try {
-        // Delete the user using transactional entity manager
         await queryRunner.manager.delete('users', { id: user.id });
         await queryRunner.commitTransaction();
         this.logger.warn(
@@ -102,8 +101,10 @@ export class AuthService {
         );
       } catch (deleteError) {
         await queryRunner.rollbackTransaction();
+        const errorMessage =
+          deleteError instanceof Error ? deleteError.message : 'Unknown error';
         this.logger.error(
-          `CRITICAL: Failed to cleanup user ${user.id} after email failure. Manual cleanup required.`,
+          `CRITICAL: Failed to cleanup user ${user.id} after email failure: ${errorMessage}. Manual cleanup required.`,
         );
       } finally {
         await queryRunner.release();

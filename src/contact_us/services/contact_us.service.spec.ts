@@ -89,10 +89,10 @@ describe('ContactUsService', () => {
         .mockReturnValue(contactEmail);
       const createSpy = jest
         .spyOn(repository, 'create')
-        .mockReturnValue(mockContactUs as ContactUs);
+        .mockReturnValue(mockContactUs);
       const saveSpy = jest
         .spyOn(repository, 'save')
-        .mockResolvedValue(mockContactUs as ContactUs);
+        .mockResolvedValue(mockContactUs);
       const sendSpy = jest
         .spyOn(emailService, 'sendTemplateMail')
         .mockResolvedValue(undefined);
@@ -157,10 +157,10 @@ describe('ContactUsService', () => {
         .mockReturnValue(contactEmail);
       const createSpy = jest
         .spyOn(repository, 'create')
-        .mockReturnValue(mockContactUs as ContactUs);
+        .mockReturnValue(mockContactUs);
       const saveSpy = jest
         .spyOn(repository, 'save')
-        .mockResolvedValue(mockContactUs as ContactUs);
+        .mockResolvedValue(mockContactUs);
       const sendSpy = jest
         .spyOn(emailService, 'sendTemplateMail')
         .mockRejectedValue(error);
@@ -192,10 +192,10 @@ describe('ContactUsService', () => {
         .mockReturnValue(contactEmail);
       const createSpy = jest
         .spyOn(repository, 'create')
-        .mockReturnValue(mockContactUs as ContactUs);
+        .mockReturnValue(mockContactUs);
       const saveSpy = jest
         .spyOn(repository, 'save')
-        .mockResolvedValue(mockContactUs as ContactUs);
+        .mockResolvedValue(mockContactUs);
       const sendSpy = jest
         .spyOn(emailService, 'sendTemplateMail')
         .mockRejectedValue('Unknown error');

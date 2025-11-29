@@ -84,7 +84,7 @@ export class RefreshTokenService {
    */
   async validateRefreshToken(
     token: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     ipAddress?: string,
     userAgent?: string,
   ): Promise<RefreshTokenPayload> {
@@ -106,7 +106,7 @@ export class RefreshTokenService {
       }
 
       if (tokenRecord.isRevoked) {
-        // Token reuse detected - revoke entire family in a transaction
+        // Token reuse detected - revoke entire family
         this.logger.warn(
           `Revoked token reuse detected! Revoking entire family ${payload.family}`,
         );

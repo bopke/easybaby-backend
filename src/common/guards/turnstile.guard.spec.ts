@@ -31,9 +31,9 @@ describe('TurnstileGuard', () => {
   });
 
   const createMockExecutionContext = (
-    body: any,
+    body: { turnstileToken?: string; [key: string]: unknown },
     ip?: string,
-    headers?: any,
+    headers?: Record<string, string | string[] | undefined>,
   ): ExecutionContext => {
     return {
       switchToHttp: () => ({
@@ -41,7 +41,7 @@ describe('TurnstileGuard', () => {
           body,
           ip,
           headers: headers || {},
-          connection: { remoteAddress: '127.0.0.1' },
+          socket: { remoteAddress: '127.0.0.1' },
         }),
       }),
     } as ExecutionContext;
@@ -110,7 +110,7 @@ describe('TurnstileGuard', () => {
     expect(verifySpy).toHaveBeenCalledWith(mockToken, '10.0.0.1');
   });
 
-  it('should use connection.remoteAddress as fallback', async () => {
+  it('should use socket.remoteAddress as fallback', async () => {
     const mockToken = 'valid-token';
     const mockContext = createMockExecutionContext({
       turnstileToken: mockToken,

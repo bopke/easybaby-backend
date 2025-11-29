@@ -11,15 +11,26 @@ import { CreateUserDto, UpdateUserDto } from '../dtos';
 
 jest.mock('bcrypt');
 
+type MockQueryRunner = {
+  connect: jest.Mock;
+  startTransaction: jest.Mock;
+  commitTransaction: jest.Mock;
+  rollbackTransaction: jest.Mock;
+  release: jest.Mock;
+  manager: {
+    findOne: jest.Mock;
+    save: jest.Mock;
+  };
+};
+
 describe('UsersService', () => {
   let service: UsersService;
   let repository: Repository<User>;
-  let dataSource: DataSource;
   let findOneSpy: jest.SpyInstance;
   let findSpy: jest.SpyInstance;
   let saveSpy: jest.SpyInstance;
   let removeSpy: jest.SpyInstance;
-  let queryRunner: any;
+  let queryRunner: MockQueryRunner;
 
   beforeEach(async () => {
     queryRunner = {
@@ -58,7 +69,6 @@ describe('UsersService', () => {
 
     service = module.get<UsersService>(UsersService);
     repository = module.get<Repository<User>>(getRepositoryToken(User));
-    dataSource = module.get<DataSource>(DataSource);
 
     findOneSpy = jest.spyOn(repository, 'findOne');
     findSpy = jest.spyOn(repository, 'find');

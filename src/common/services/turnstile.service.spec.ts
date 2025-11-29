@@ -68,7 +68,7 @@ describe('TurnstileService', () => {
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       });
 
       const result = await service.verifyToken(mockToken, mockIp);
@@ -92,7 +92,7 @@ describe('TurnstileService', () => {
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       });
 
       const result = await service.verifyToken(mockToken);
@@ -108,7 +108,7 @@ describe('TurnstileService', () => {
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       });
 
       const logSpy = jest.spyOn(Logger.prototype, 'warn');
