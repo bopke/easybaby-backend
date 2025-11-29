@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -13,6 +14,7 @@ import { generateVerificationCode } from '../utils';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   private readonly SALT_ROUNDS = 10;
 
   constructor(
@@ -62,7 +64,10 @@ export class UsersService {
       isEmailVerified: false,
     });
 
-    return this.usersRepository.save(user);
+    const savedUser = await this.usersRepository.save(user);
+    this.logger.log(`User created: ${savedUser.email} (ID: ${savedUser.id})`);
+
+    return savedUser;
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
@@ -101,9 +106,19 @@ export class UsersService {
 
       await queryRunner.commitTransaction();
 
+      this.logger.log(
+        `User updated: ${updatedUser.email} (ID: ${updatedUser.id})`,
+      );
+
       return updatedUser;
     } catch (error) {
       await queryRunner.rollbackTransaction();
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to update user ${id}: ${errorMessage}`,
+        error instanceof Error ? error.stack : undefined,
+      );
       throw error;
     } finally {
       await queryRunner.release();
@@ -113,6 +128,7 @@ export class UsersService {
   async remove(id: string): Promise<void> {
     const user = await this.findOne(id);
     await this.usersRepository.remove(user);
+    this.logger.log(`User deleted: ${user.email} (ID: ${id})`);
   }
 
   async comparePasswords(
@@ -158,9 +174,19 @@ export class UsersService {
 
       await queryRunner.commitTransaction();
 
+      this.logger.log(
+        `Email verified for user: ${verifiedUser.email} (ID: ${verifiedUser.id})`,
+      );
+
       return verifiedUser;
     } catch (error) {
       await queryRunner.rollbackTransaction();
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to verify email for ${email}: ${errorMessage}`,
+        error instanceof Error ? error.stack : undefined,
+      );
       throw error;
     } finally {
       await queryRunner.release();

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { User } from '../entities/user.entity';
@@ -74,6 +74,11 @@ describe('UsersService', () => {
     findSpy = jest.spyOn(repository, 'find');
     saveSpy = jest.spyOn(repository, 'save');
     removeSpy = jest.spyOn(repository, 'remove');
+
+    // Suppress logger output during tests
+    jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
   });
 
   afterEach(() => {
