@@ -2,13 +2,23 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RefreshTokenService } from './refresh-token.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { RefreshToken } from '../entities/refresh-token.entity';
-import { Repository, UpdateResult, DataSource } from 'typeorm';
+import {
+  Repository,
+  UpdateResult,
+  DataSource,
+  QueryFailedError,
+} from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  Logger,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { mockUser } from '../../users/mocks';
 import { createMockRefreshToken } from '../mocks';
 import { PaginationService } from '../../common/services/pagination.service';
+import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 
 describe('RefreshTokenService', () => {
   let service: RefreshTokenService;
@@ -174,7 +184,7 @@ describe('RefreshTokenService', () => {
       const verifySpy = jest
         .spyOn(jwtService, 'verify')
         .mockImplementation(() => {
-          throw new Error('Invalid signature');
+          throw new JsonWebTokenError('invalid signature');
         });
 
       await expect(service.validateRefreshToken(mockToken)).rejects.toThrow(
@@ -360,6 +370,105 @@ describe('RefreshTokenService', () => {
       expect(verifySpy).toHaveBeenCalled();
       expect(findOneSpy).toHaveBeenCalled();
       expect(saveSpy).toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException for TokenExpiredError', async () => {
+      const mockToken = 'expired.jwt.token';
+      const loggerLogSpy = jest
+        .spyOn(service['logger'], 'log')
+        .mockImplementation();
+
+      jest.spyOn(jwtService, 'verify').mockImplementation(() => {
+        throw new TokenExpiredError('jwt expired', new Date());
+      });
+
+      await expect(service.validateRefreshToken(mockToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(service.validateRefreshToken(mockToken)).rejects.toThrow(
+        'Refresh token has expired',
+      );
+
+      expect(loggerLogSpy).toHaveBeenCalled();
+      loggerLogSpy.mockRestore();
+    });
+
+    it('should throw UnauthorizedException for JsonWebTokenError', async () => {
+      const mockToken = 'invalid.jwt.token';
+      const loggerWarnSpy = jest
+        .spyOn(service['logger'], 'warn')
+        .mockImplementation();
+
+      jest.spyOn(jwtService, 'verify').mockImplementation(() => {
+        throw new JsonWebTokenError('invalid token');
+      });
+
+      await expect(service.validateRefreshToken(mockToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(service.validateRefreshToken(mockToken)).rejects.toThrow(
+        'Invalid refresh token',
+      );
+
+      expect(loggerWarnSpy).toHaveBeenCalled();
+      loggerWarnSpy.mockRestore();
+    });
+
+    it('should throw InternalServerErrorException for database errors', async () => {
+      const mockToken = 'valid.jwt.token';
+      const mockPayload = {
+        sub: mockUser.id,
+        jti: 'jti-123',
+        type: 'refresh' as const,
+        family: 'family-123',
+      };
+      const loggerErrorSpy = jest
+        .spyOn(service['logger'], 'error')
+        .mockImplementation();
+
+      jest.spyOn(jwtService, 'verify').mockReturnValue(mockPayload);
+      jest.spyOn(repository, 'findOne').mockImplementation(() => {
+        throw new QueryFailedError(
+          'SELECT * FROM refresh_tokens',
+          [],
+          new Error('Connection lost'),
+        );
+      });
+
+      await expect(service.validateRefreshToken(mockToken)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+      await expect(service.validateRefreshToken(mockToken)).rejects.toThrow(
+        'Token validation failed due to server error',
+      );
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Database error during token validation'),
+        expect.any(String),
+      );
+      loggerErrorSpy.mockRestore();
+    });
+
+    it('should re-throw unexpected errors', async () => {
+      const mockToken = 'valid.jwt.token';
+      const unexpectedError = new Error('Unexpected system error');
+      const loggerErrorSpy = jest
+        .spyOn(service['logger'], 'error')
+        .mockImplementation();
+
+      jest.spyOn(jwtService, 'verify').mockImplementation(() => {
+        throw unexpectedError;
+      });
+
+      await expect(service.validateRefreshToken(mockToken)).rejects.toThrow(
+        unexpectedError,
+      );
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Unexpected error during token validation'),
+        expect.any(String),
+      );
+      loggerErrorSpy.mockRestore();
     });
   });
 

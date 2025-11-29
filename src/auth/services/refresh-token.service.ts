@@ -1,6 +1,16 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  UnauthorizedException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, DataSource } from 'typeorm';
+import { Repository, LessThan, DataSource, QueryFailedError } from 'typeorm';
+import {
+  JsonWebTokenError,
+  TokenExpiredError,
+  NotBeforeError,
+} from 'jsonwebtoken';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
@@ -164,9 +174,42 @@ export class RefreshTokenService {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Token validation failed: ${message}`);
-      throw new UnauthorizedException('Invalid refresh token');
+
+      if (error instanceof TokenExpiredError) {
+        this.logger.log('Token verification failed: Token has expired');
+        throw new UnauthorizedException('Refresh token has expired');
+      }
+
+      if (
+        error instanceof JsonWebTokenError ||
+        error instanceof NotBeforeError
+      ) {
+        this.logger.warn(
+          `Token verification failed: ${error.message}`,
+          error.stack,
+        );
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      if (error instanceof QueryFailedError) {
+        this.logger.error(
+          `Database error during token validation: ${error.message}`,
+          error.stack,
+        );
+        throw new InternalServerErrorException(
+          'Token validation failed due to server error',
+        );
+      }
+
+      // Log and re-throw unexpected errors
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Unexpected error during token validation: ${errorMessage}`,
+        errorStack,
+      );
+      throw error;
     }
   }
 
