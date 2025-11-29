@@ -54,7 +54,9 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload);
-    const expiresIn = 3600; // 1 hour
+    const expiresIn = this.configService.get<number>(
+      'jwt.accessTokenExpiration',
+    );
 
     // Generate refresh token
     const { token: refreshToken, expiresIn: refreshTokenExpiresIn } =
@@ -192,7 +194,9 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload);
-    const expiresIn = 3600; // 1 hour
+    const expiresIn = this.configService.get<number>(
+      'jwt.accessTokenExpiration',
+    );
 
     this.logger.log(`Tokens refreshed for user ${user.email}`);
 

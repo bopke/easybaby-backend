@@ -315,9 +315,9 @@ export class RefreshTokenService {
   }
 
   /**
-   * Get refresh token expiration in seconds (30 days)
+   * Get refresh token expiration in seconds
    */
   private getRefreshTokenExpiration(): number {
-    return 30 * 24 * 60 * 60; // 30 days
+    return this.configService.get<number>('refreshToken.expiration') || 2592000;
   }
 }

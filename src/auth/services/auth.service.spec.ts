@@ -54,9 +54,10 @@ describe('AuthService', () => {
           provide: ConfigService,
           useValue: {
             get: jest.fn((key: string) => {
-              const config: Record<string, string> = {
+              const config: Record<string, string | number> = {
                 'jwt.issuer': 'workshops-api',
                 'jwt.audience': 'workshops-api',
+                'jwt.accessTokenExpiration': 3600,
               };
               return config[key];
             }),

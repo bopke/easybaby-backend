@@ -71,6 +71,7 @@ describe('RefreshTokenService', () => {
     jest.spyOn(configService, 'get').mockImplementation((key: string) => {
       const config: Record<string, any> = {
         'refreshToken.secret': 'test-refresh-secret',
+        'refreshToken.expiration': 2592000, // 30 days
       };
       return config[key];
     });

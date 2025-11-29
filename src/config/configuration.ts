@@ -15,9 +15,14 @@ export default () => ({
     secret: process.env.JWT_SECRET,
     issuer: process.env.JWT_ISSUER || 'easybaby-api',
     audience: process.env.JWT_AUDIENCE || 'easybaby-api',
+    accessTokenExpiration: parseInt(
+      process.env.JWT_ACCESS_TOKEN_TTL || '3600',
+      10,
+    ), // 1 hour default
   },
   refreshToken: {
     secret: process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
+    expiration: parseInt(process.env.JWT_REFRESH_TOKEN_TTL || '2592000', 10), // 30 days default
   },
   email: {
     brevoApiKey: process.env.BREVO_API_KEY,
