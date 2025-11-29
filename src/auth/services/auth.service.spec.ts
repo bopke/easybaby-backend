@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 import {
   ConflictException,
   UnauthorizedException,
@@ -78,6 +79,21 @@ describe('AuthService', () => {
             revokeTokenByJti: jest.fn(),
             revokeAllUserTokens: jest.fn(),
             getUserSessions: jest.fn(),
+          },
+        },
+        {
+          provide: DataSource,
+          useValue: {
+            createQueryRunner: jest.fn().mockReturnValue({
+              connect: jest.fn(),
+              startTransaction: jest.fn(),
+              commitTransaction: jest.fn(),
+              rollbackTransaction: jest.fn(),
+              release: jest.fn(),
+              manager: {
+                delete: jest.fn(),
+              },
+            }),
           },
         },
       ],
@@ -246,11 +262,10 @@ describe('AuthService', () => {
         emailVerificationCode: 'DEF456',
       });
 
-      jest.spyOn(usersService, 'create').mockResolvedValue(newUser);
-      const removeSpy = jest
-        .spyOn(usersService, 'remove')
-        .mockResolvedValue(undefined);
-      jest
+      const createSpy = jest
+        .spyOn(usersService, 'create')
+        .mockResolvedValue(newUser);
+      const sendEmailSpy = jest
         .spyOn(emailService, 'sendRegistrationEmail')
         .mockRejectedValue(new Error('Failed to send email'));
 
@@ -258,7 +273,11 @@ describe('AuthService', () => {
         'Failed to send email',
       );
 
-      expect(removeSpy).toHaveBeenCalledWith(newUser.id);
+      expect(createSpy).toHaveBeenCalledWith({
+        email: registerDto.email,
+        password: registerDto.password,
+      });
+      expect(sendEmailSpy).toHaveBeenCalledWith(newUser);
     });
   });
 

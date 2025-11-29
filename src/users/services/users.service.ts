@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../entities/user.entity';
 import { CreateUserDto, UpdateUserDto } from '../dtos';
@@ -18,6 +18,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(): Promise<User[]> {
@@ -65,33 +66,48 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findOne(id);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    // Check if email is being updated and if it's already taken
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await this.usersRepository.findOne({
-        where: { email: updateUserDto.email },
-      });
+    try {
+      const user = await queryRunner.manager.findOne(User, { where: { id } });
 
-      if (existingUser) {
-        throw new ConflictException('User with this email already exists');
+      if (!user) {
+        throw new NotFoundException(`User with ID ${id} not found`);
       }
+
+      if (updateUserDto.email && updateUserDto.email !== user.email) {
+        const existingUser = await queryRunner.manager.findOne(User, {
+          where: { email: updateUserDto.email },
+        });
+
+        if (existingUser) {
+          throw new ConflictException('User with this email already exists');
+        }
+      }
+
+      const updateData: Partial<User> = { ...updateUserDto };
+
+      if (updateUserDto.password) {
+        updateData.password = await bcrypt.hash(
+          updateUserDto.password,
+          this.SALT_ROUNDS,
+        );
+      }
+
+      Object.assign(user, updateData);
+      const updatedUser = await queryRunner.manager.save(user);
+
+      await queryRunner.commitTransaction();
+
+      return updatedUser;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
-
-    // Prepare update data
-    const updateData: Partial<User> = { ...updateUserDto };
-
-    // Hash password if it's being updated
-    if (updateUserDto.password) {
-      updateData.password = await bcrypt.hash(
-        updateUserDto.password,
-        this.SALT_ROUNDS,
-      );
-    }
-
-    // Update user
-    Object.assign(user, updateData);
-    return this.usersRepository.save(user);
   }
 
   async remove(id: string): Promise<void> {
@@ -110,25 +126,44 @@ export class UsersService {
     email: string,
     verificationCode: string,
   ): Promise<User | null> {
-    const user = await this.findByEmail(email);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    if (!user) {
-      return null;
+    try {
+      const user = await queryRunner.manager.findOne(User, {
+        where: { email },
+      });
+
+      if (!user) {
+        await queryRunner.rollbackTransaction();
+        return null;
+      }
+
+      if (user.emailVerificationCode !== verificationCode) {
+        await queryRunner.rollbackTransaction();
+        return null;
+      }
+
+      if (
+        user.emailVerificationCodeExpires &&
+        user.emailVerificationCodeExpires < new Date()
+      ) {
+        await queryRunner.rollbackTransaction();
+        return null;
+      }
+
+      user.isEmailVerified = true;
+      const verifiedUser = await queryRunner.manager.save(user);
+
+      await queryRunner.commitTransaction();
+
+      return verifiedUser;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
-
-    if (user.emailVerificationCode !== verificationCode) {
-      return null;
-    }
-
-    // Check if verification code has expired
-    if (
-      user.emailVerificationCodeExpires &&
-      user.emailVerificationCodeExpires < new Date()
-    ) {
-      return null;
-    }
-
-    user.isEmailVerified = true;
-    return this.usersRepository.save(user);
   }
 }

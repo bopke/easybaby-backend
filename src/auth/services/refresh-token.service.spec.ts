@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RefreshTokenService } from './refresh-token.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { RefreshToken } from '../entities/refresh-token.entity';
-import { Repository, UpdateResult } from 'typeorm';
+import { Repository, UpdateResult, DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException, Logger } from '@nestjs/common';
@@ -36,6 +36,22 @@ describe('RefreshTokenService', () => {
     get: jest.fn(),
   };
 
+  const mockDataSource = {
+    createQueryRunner: jest.fn().mockReturnValue({
+      connect: jest.fn(),
+      startTransaction: jest.fn(),
+      commitTransaction: jest.fn(),
+      rollbackTransaction: jest.fn(),
+      release: jest.fn(),
+      manager: {
+        create: jest.fn(),
+        save: jest.fn(),
+        update: jest.fn(),
+        findOne: jest.fn(),
+      },
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -51,6 +67,10 @@ describe('RefreshTokenService', () => {
         {
           provide: ConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
       ],
     }).compile();

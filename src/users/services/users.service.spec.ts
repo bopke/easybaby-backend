@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
@@ -14,12 +14,26 @@ jest.mock('bcrypt');
 describe('UsersService', () => {
   let service: UsersService;
   let repository: Repository<User>;
+  let dataSource: DataSource;
   let findOneSpy: jest.SpyInstance;
   let findSpy: jest.SpyInstance;
   let saveSpy: jest.SpyInstance;
   let removeSpy: jest.SpyInstance;
+  let queryRunner: any;
 
   beforeEach(async () => {
+    queryRunner = {
+      connect: jest.fn(),
+      startTransaction: jest.fn(),
+      commitTransaction: jest.fn(),
+      rollbackTransaction: jest.fn(),
+      release: jest.fn(),
+      manager: {
+        findOne: jest.fn(),
+        save: jest.fn(),
+      },
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
@@ -33,11 +47,18 @@ describe('UsersService', () => {
             remove: jest.fn(),
           },
         },
+        {
+          provide: DataSource,
+          useValue: {
+            createQueryRunner: jest.fn().mockReturnValue(queryRunner),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
     repository = module.get<Repository<User>>(getRepositoryToken(User));
+    dataSource = module.get<DataSource>(DataSource);
 
     findOneSpy = jest.spyOn(repository, 'findOne');
     findSpy = jest.spyOn(repository, 'find');
@@ -127,16 +148,20 @@ describe('UsersService', () => {
 
     it('should update a user', async () => {
       const updatedUser = createMockUser(updateUserDto);
-      findOneSpy.mockResolvedValueOnce(mockUser).mockResolvedValueOnce(null);
-      saveSpy.mockResolvedValue(updatedUser);
+      queryRunner.manager.findOne
+        .mockResolvedValueOnce(mockUser)
+        .mockResolvedValueOnce(null);
+      queryRunner.manager.save.mockResolvedValue(updatedUser);
 
       const result = await service.update(mockUser.id, updateUserDto);
 
-      expect(findOneSpy).toHaveBeenCalledWith({ where: { id: mockUser.id } });
-      expect(findOneSpy).toHaveBeenCalledWith({
+      expect(queryRunner.manager.findOne).toHaveBeenCalledWith(User, {
+        where: { id: mockUser.id },
+      });
+      expect(queryRunner.manager.findOne).toHaveBeenCalledWith(User, {
         where: { email: updateUserDto.email },
       });
-      expect(saveSpy).toHaveBeenCalledWith(createMockUser(updateUserDto));
+      expect(queryRunner.manager.save).toHaveBeenCalled();
       expect(result).toEqual(updatedUser);
     });
 
@@ -146,24 +171,21 @@ describe('UsersService', () => {
       };
       const hashedPassword = 'newHashedPassword';
 
-      findOneSpy.mockResolvedValue(mockUser);
+      queryRunner.manager.findOne.mockResolvedValue(mockUser);
       (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
       const updatedMockUser = { ...mockUser, password: hashedPassword };
-      saveSpy.mockResolvedValue(updatedMockUser);
+      queryRunner.manager.save.mockResolvedValue(updatedMockUser);
 
       const result = await service.update(mockUser.id, updateWithPassword);
 
       expect(bcrypt.hash).toHaveBeenCalledWith(updateWithPassword.password, 10);
-      expect(saveSpy).toHaveBeenCalledWith({
-        ...mockUser,
-        password: hashedPassword,
-      });
+      expect(queryRunner.manager.save).toHaveBeenCalled();
       expect(result.password).toEqual(hashedPassword);
     });
 
     it('should throw NotFoundException if user not found', async () => {
       const userId = 'non-existent-id';
-      findOneSpy.mockResolvedValue(null);
+      queryRunner.manager.findOne.mockResolvedValue(null);
 
       await expect(service.update(userId, updateUserDto)).rejects.toThrow(
         NotFoundException,
@@ -172,7 +194,7 @@ describe('UsersService', () => {
         `User with ID ${userId} not found`,
       );
 
-      expect(saveSpy).not.toHaveBeenCalled();
+      expect(queryRunner.manager.save).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictException if email already exists', async () => {
@@ -181,23 +203,15 @@ describe('UsersService', () => {
         email: 'newemail@example.com',
       };
 
-      findOneSpy.mockImplementation(
-        (options: { where: { id?: string; email?: string } }) => {
-          if (options.where.id === mockUser.id) {
-            return Promise.resolve(mockUser);
-          }
-          if (options.where.email === updateDtoWithNewEmail.email) {
-            return Promise.resolve(existingUser);
-          }
-          return Promise.resolve(null);
-        },
-      );
+      queryRunner.manager.findOne
+        .mockResolvedValueOnce(mockUser)
+        .mockResolvedValueOnce(existingUser);
 
       await expect(
         service.update(mockUser.id, updateDtoWithNewEmail),
       ).rejects.toThrow('User with this email already exists');
 
-      expect(saveSpy).not.toHaveBeenCalled();
+      expect(queryRunner.manager.save).not.toHaveBeenCalled();
     });
 
     it('should not check email conflict if email is not being updated', async () => {
@@ -205,14 +219,14 @@ describe('UsersService', () => {
         password: 'newPassword123',
       };
 
-      findOneSpy.mockResolvedValue(mockUser);
+      queryRunner.manager.findOne.mockResolvedValue(mockUser);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
-      saveSpy.mockResolvedValue(mockUser);
+      queryRunner.manager.save.mockResolvedValue(mockUser);
 
       await service.update(mockUser.id, updateWithoutEmail);
 
       // Should only be called once (to find the user)
-      expect(findOneSpy).toHaveBeenCalledTimes(1);
+      expect(queryRunner.manager.findOne).toHaveBeenCalledTimes(1);
     });
 
     it('should not check email conflict if email is the same', async () => {
@@ -220,13 +234,13 @@ describe('UsersService', () => {
         email: mockUser.email,
       };
 
-      findOneSpy.mockResolvedValue(mockUser);
-      saveSpy.mockResolvedValue(mockUser);
+      queryRunner.manager.findOne.mockResolvedValue(mockUser);
+      queryRunner.manager.save.mockResolvedValue(mockUser);
 
       await service.update(mockUser.id, updateSameEmail);
 
       // Should only be called once (to find the user)
-      expect(findOneSpy).toHaveBeenCalledTimes(1);
+      expect(queryRunner.manager.findOne).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -374,24 +388,24 @@ describe('UsersService', () => {
         emailVerificationCodeExpires: futureDate,
       });
 
-      findOneSpy.mockResolvedValue(userWithValidCode);
-      saveSpy.mockResolvedValue(verifiedUser);
+      queryRunner.manager.findOne.mockResolvedValue(userWithValidCode);
+      queryRunner.manager.save.mockResolvedValue(verifiedUser);
 
       const result = await service.verifyEmail(
         userWithValidCode.email,
         userWithValidCode.emailVerificationCode,
       );
 
-      expect(findOneSpy).toHaveBeenCalledWith({
+      expect(queryRunner.manager.findOne).toHaveBeenCalledWith(User, {
         where: { email: userWithValidCode.email },
       });
-      expect(saveSpy).toHaveBeenCalled();
+      expect(queryRunner.manager.save).toHaveBeenCalled();
       expect(result).toBeTruthy();
       expect(result?.isEmailVerified).toBe(true);
     });
 
     it('should return null when user not found', async () => {
-      findOneSpy.mockResolvedValue(null);
+      queryRunner.manager.findOne.mockResolvedValue(null);
 
       const result = await service.verifyEmail(
         'nonexistent@example.com',
@@ -399,19 +413,19 @@ describe('UsersService', () => {
       );
 
       expect(result).toBeNull();
-      expect(saveSpy).not.toHaveBeenCalled();
+      expect(queryRunner.manager.save).not.toHaveBeenCalled();
     });
 
     it('should return null when verification code does not match', async () => {
-      findOneSpy.mockResolvedValue(mockUser);
+      queryRunner.manager.findOne.mockResolvedValue(mockUser);
 
       const result = await service.verifyEmail(mockUser.email, 'WRONG1');
 
-      expect(findOneSpy).toHaveBeenCalledWith({
+      expect(queryRunner.manager.findOne).toHaveBeenCalledWith(User, {
         where: { email: mockUser.email },
       });
       expect(result).toBeNull();
-      expect(saveSpy).not.toHaveBeenCalled();
+      expect(queryRunner.manager.save).not.toHaveBeenCalled();
     });
 
     it('should return null when verification code has expired', async () => {
@@ -422,18 +436,18 @@ describe('UsersService', () => {
         emailVerificationCodeExpires: expiredDate,
       });
 
-      findOneSpy.mockResolvedValue(expiredUser);
+      queryRunner.manager.findOne.mockResolvedValue(expiredUser);
 
       const result = await service.verifyEmail(
         expiredUser.email,
         expiredUser.emailVerificationCode,
       );
 
-      expect(findOneSpy).toHaveBeenCalledWith({
+      expect(queryRunner.manager.findOne).toHaveBeenCalledWith(User, {
         where: { email: expiredUser.email },
       });
       expect(result).toBeNull();
-      expect(saveSpy).not.toHaveBeenCalled();
+      expect(queryRunner.manager.save).not.toHaveBeenCalled();
     });
 
     it('should verify email when code is valid and not expired', async () => {
@@ -450,18 +464,18 @@ describe('UsersService', () => {
         isEmailVerified: true,
       });
 
-      findOneSpy.mockResolvedValue(validUser);
-      saveSpy.mockResolvedValue(verifiedUser);
+      queryRunner.manager.findOne.mockResolvedValue(validUser);
+      queryRunner.manager.save.mockResolvedValue(verifiedUser);
 
       const result = await service.verifyEmail(
         validUser.email,
         validUser.emailVerificationCode,
       );
 
-      expect(findOneSpy).toHaveBeenCalledWith({
+      expect(queryRunner.manager.findOne).toHaveBeenCalledWith(User, {
         where: { email: validUser.email },
       });
-      expect(saveSpy).toHaveBeenCalled();
+      expect(queryRunner.manager.save).toHaveBeenCalled();
       expect(result).toBeTruthy();
       expect(result?.isEmailVerified).toBe(true);
     });

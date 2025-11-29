@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { DataSource } from 'typeorm';
 import { UsersService } from '../../users/services/users.service';
 import {
   LoginDto,
@@ -33,6 +34,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly refreshTokenService: RefreshTokenService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async login(
@@ -85,10 +87,29 @@ export class AuthService {
 
     try {
       await this.emailService.sendRegistrationEmail(user);
-    } catch (error) {
-      // Do not create users with unsent email
-      await this.usersService.remove(user.id);
-      throw error;
+    } catch (emailError) {
+      // If email fails, ensure user is deleted in a transaction
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        // Delete the user using transactional entity manager
+        await queryRunner.manager.delete('users', { id: user.id });
+        await queryRunner.commitTransaction();
+        this.logger.warn(
+          `User ${user.email} creation rolled back due to email failure`,
+        );
+      } catch (deleteError) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error(
+          `CRITICAL: Failed to cleanup user ${user.id} after email failure. Manual cleanup required.`,
+        );
+      } finally {
+        await queryRunner.release();
+      }
+
+      throw emailError;
     }
 
     this.logger.log(

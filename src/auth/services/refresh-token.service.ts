@@ -6,6 +6,7 @@ import {
   ILike,
   FindOptionsWhere,
   FindOptionsOrder,
+  DataSource,
 } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -30,6 +31,7 @@ export class RefreshTokenService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -104,11 +106,34 @@ export class RefreshTokenService {
       }
 
       if (tokenRecord.isRevoked) {
-        // Token reuse detected - revoke entire family
+        // Token reuse detected - revoke entire family in a transaction
         this.logger.warn(
           `Revoked token reuse detected! Revoking entire family ${payload.family}`,
         );
-        await this.revokeTokenFamily(payload.family);
+
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+          await queryRunner.manager.update(
+            RefreshToken,
+            { tokenFamily: payload.family, isRevoked: false },
+            { isRevoked: true },
+          );
+          await queryRunner.commitTransaction();
+          this.logger.warn(
+            `All tokens in family ${payload.family} have been revoked`,
+          );
+        } catch (error) {
+          await queryRunner.rollbackTransaction();
+          this.logger.error(
+            `Failed to revoke token family ${payload.family}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        } finally {
+          await queryRunner.release();
+        }
+
         throw new UnauthorizedException(
           'Token has been revoked. All tokens in this family have been revoked for security.',
         );
@@ -159,20 +184,74 @@ export class RefreshTokenService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<{ token: string; expiresIn: number }> {
-    const payload = await this.validateRefreshToken(
-      oldToken,
-      ipAddress,
-      userAgent,
-    );
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    await this.revokeTokenByJti(payload.jti);
+    try {
+      // Validate old token
+      const payload = await this.validateRefreshToken(
+        oldToken,
+        ipAddress,
+        userAgent,
+      );
 
-    return this.generateRefreshToken(
-      user,
-      ipAddress,
-      userAgent,
-      payload.family,
-    );
+      // Revoke old token (update within transaction)
+      await queryRunner.manager.update(
+        RefreshToken,
+        { jti: payload.jti },
+        { isRevoked: true },
+      );
+      this.logger.log(`Refresh token ${payload.jti} revoked`);
+
+      // Generate new token data
+      const jti = uuidv4();
+      const expiresIn = this.getRefreshTokenExpiration();
+
+      const newPayload: RefreshTokenPayload = {
+        sub: user.id,
+        jti,
+        type: 'refresh',
+        family: payload.family,
+      };
+
+      const token = this.jwtService.sign(newPayload, {
+        secret: this.configService.get<string>('refreshToken.secret'),
+        expiresIn: `${expiresIn}s`,
+      });
+
+      // Create new token record (insert within transaction)
+      const refreshToken = queryRunner.manager.create(RefreshToken, {
+        jti,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + expiresIn * 1000),
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        tokenFamily: payload.family,
+        isRevoked: false,
+      });
+
+      await queryRunner.manager.save(refreshToken);
+
+      // Commit transaction
+      await queryRunner.commitTransaction();
+
+      this.logger.log(
+        `Refresh token generated for user ${user.id} with JTI ${jti}`,
+      );
+
+      return { token, expiresIn };
+    } catch (error) {
+      // Rollback transaction on error
+      await queryRunner.rollbackTransaction();
+      this.logger.error(
+        `Token rotation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw error;
+    } finally {
+      // Release query runner
+      await queryRunner.release();
+    }
   }
 
   /**
