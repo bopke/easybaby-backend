@@ -1,23 +1,69 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaginationService } from './pagination.service';
-import { ILike } from 'typeorm';
+import { ILike, DataSource, EntityMetadata, ColumnMetadata } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
-interface TestEntity {
+@Entity()
+class TestEntity {
+  @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column()
   name: string;
+
+  @Column()
   email: string;
+
+  @Column()
   age: number;
+
+  @Column()
   isActive: boolean;
+
+  @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
   updatedAt: Date;
 }
 
 describe('PaginationService', () => {
   let service: PaginationService;
+  let mockDataSource: Partial<DataSource>;
 
   beforeEach(async () => {
+    const mockColumns: Partial<ColumnMetadata>[] = [
+      { propertyName: 'id' },
+      { propertyName: 'name' },
+      { propertyName: 'email' },
+      { propertyName: 'age' },
+      { propertyName: 'isActive' },
+      { propertyName: 'createdAt' },
+      { propertyName: 'updatedAt' },
+    ];
+
+    const mockMetadata: Partial<EntityMetadata> = {
+      columns: mockColumns,
+    };
+
+    mockDataSource = {
+      getMetadata: jest.fn().mockReturnValue(mockMetadata),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PaginationService],
+      providers: [
+        PaginationService,
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
+        },
+      ],
     }).compile();
 
     service = module.get<PaginationService>(PaginationService);
@@ -78,6 +124,83 @@ describe('PaginationService', () => {
 
       expect(result).toEqual({
         name: 'ASC',
+      });
+    });
+
+    it('should validate fields against entity metadata', () => {
+      const orderStrings = ['name:asc', 'email:desc', 'invalidField:asc'];
+
+      const result = service.buildOrderClause<TestEntity>(
+        orderStrings,
+        {},
+        TestEntity,
+      );
+
+      expect(result).toEqual({
+        name: 'ASC',
+        email: 'DESC',
+      });
+      expect(mockDataSource.getMetadata).toHaveBeenCalledWith(TestEntity);
+    });
+
+    it('should skip invalid directions', () => {
+      const orderStrings = [
+        'name:asc',
+        'email:invalid',
+        'age:descending',
+        'createdAt:up',
+      ];
+      const result = service.buildOrderClause<TestEntity>(orderStrings);
+
+      expect(result).toEqual({
+        name: 'ASC',
+      });
+    });
+
+    it('should fall back to default order when all order strings are invalid', () => {
+      const orderStrings = ['invalid:field', 'field:invalid'];
+      const defaultOrder = { createdAt: 'DESC' as const };
+
+      const result = service.buildOrderClause<TestEntity>(
+        orderStrings,
+        defaultOrder,
+      );
+
+      expect(result).toEqual(defaultOrder);
+    });
+
+    it('should fall back to default when no fields match entity', () => {
+      const orderStrings = ['invalidField1:asc', 'invalidField2:desc'];
+      const defaultOrder = { createdAt: 'DESC' as const };
+
+      const result = service.buildOrderClause<TestEntity>(
+        orderStrings,
+        defaultOrder,
+        TestEntity,
+      );
+
+      expect(result).toEqual(defaultOrder);
+    });
+
+    it('should work without entity validation when entity not provided', () => {
+      const orderStrings = ['anyField:asc', 'anotherField:desc'];
+
+      const result = service.buildOrderClause<TestEntity>(orderStrings);
+
+      expect(result).toEqual({
+        anyField: 'ASC',
+        anotherField: 'DESC',
+      });
+      expect(mockDataSource.getMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should allow mixed case directions', () => {
+      const orderStrings = ['name:AsC', 'email:dEsC'];
+      const result = service.buildOrderClause<TestEntity>(orderStrings);
+
+      expect(result).toEqual({
+        name: 'ASC',
+        email: 'DESC',
       });
     });
   });

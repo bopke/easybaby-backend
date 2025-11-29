@@ -353,10 +353,10 @@ export class RefreshTokenService {
       stringFields,
       { userId, isRevoked: false },
     );
-
     const order = this.paginationService.buildOrderClause<RefreshToken>(
       ordering.order,
       { createdAt: 'DESC' },
+      RefreshToken,
     );
 
     const [sessions, total] = await this.refreshTokenRepository.findAndCount({

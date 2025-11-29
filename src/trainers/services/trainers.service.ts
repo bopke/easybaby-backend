@@ -44,6 +44,7 @@ export class TrainersService {
     const order = this.paginationService.buildOrderClause<Trainer>(
       ordering.order,
       { createdAt: 'DESC' },
+      Trainer,
     );
 
     const [trainers, total] = await this.trainersRepository.findAndCount({

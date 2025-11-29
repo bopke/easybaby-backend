@@ -61,6 +61,21 @@ describe('RefreshTokenService', () => {
         findOne: jest.fn(),
       },
     }),
+    getMetadata: jest.fn().mockReturnValue({
+      columns: [
+        { propertyName: 'id' },
+        { propertyName: 'jti' },
+        { propertyName: 'userId' },
+        { propertyName: 'tokenFamily' },
+        { propertyName: 'isRevoked' },
+        { propertyName: 'expiresAt' },
+        { propertyName: 'ipAddress' },
+        { propertyName: 'userAgent' },
+        { propertyName: 'lastUsedAt' },
+        { propertyName: 'createdAt' },
+        { propertyName: 'updatedAt' },
+      ],
+    }),
   };
 
   beforeEach(async () => {

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, DataSource } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { TrainersService } from './trainers.service';
 import { Trainer } from '../entities';
@@ -21,6 +21,25 @@ describe('TrainersService', () => {
   let saveSpy: jest.SpyInstance;
   let removeSpy: jest.SpyInstance;
 
+  const mockDataSource = {
+    getMetadata: jest.fn().mockReturnValue({
+      columns: [
+        { propertyName: 'id' },
+        { propertyName: 'name' },
+        { propertyName: 'voivodeship' },
+        { propertyName: 'city' },
+        { propertyName: 'email' },
+        { propertyName: 'site' },
+        { propertyName: 'phone' },
+        { propertyName: 'additionalOffer' },
+        { propertyName: 'isVerified' },
+        { propertyName: 'notes' },
+        { propertyName: 'createdAt' },
+        { propertyName: 'updatedAt' },
+      ],
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,6 +54,10 @@ describe('TrainersService', () => {
             save: jest.fn(),
             remove: jest.fn(),
           },
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
       ],
     }).compile();

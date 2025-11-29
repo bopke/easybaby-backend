@@ -1,37 +1,77 @@
 import { Injectable } from '@nestjs/common';
-import { FindOptionsOrder, FindOptionsWhere, ILike } from 'typeorm';
+import {
+  FindOptionsOrder,
+  FindOptionsWhere,
+  ILike,
+  DataSource,
+  EntityTarget,
+} from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 
 /**
  * Utility service for building TypeORM pagination, filtering, and ordering clauses
  */
 @Injectable()
 export class PaginationService {
+  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+
+  /**
+   * Get valid column names from entity metadata
+   * @param entity The entity class to get columns from
+   * @returns Array of valid column names
+   */
+  private getEntityColumns<T>(entity: EntityTarget<T>): string[] {
+    const metadata = this.dataSource.getMetadata(entity);
+    return metadata.columns.map((col) => col.propertyName);
+  }
+
   /**
    * Build TypeORM order clause from array of order strings
    * @param orderStrings Array of strings in format "field:direction" (e.g., ["name:asc", "createdAt:desc"])
    * @param defaultOrder Default order if no order strings provided (e.g., { createdAt: 'DESC' })
+   * @param entity Optional entity class to validate fields against
    * @returns TypeORM FindOptionsOrder object
    *
    * @example
    * const order = paginationService.buildOrderClause<Trainer>(
    *   ['name:asc', 'createdAt:desc'],
-   *   { createdAt: 'DESC' }
+   *   { createdAt: 'DESC' },
+   *   Trainer
    * );
    */
   buildOrderClause<T>(
     orderStrings: string[] | undefined,
     defaultOrder: FindOptionsOrder<T> = {},
+    entity?: EntityTarget<T>,
   ): FindOptionsOrder<T> {
     const order: FindOptionsOrder<T> = {};
 
     if (orderStrings && orderStrings.length > 0) {
+      // Get valid columns from entity metadata if entity is provided
+      const validColumns = entity ? this.getEntityColumns(entity) : null;
+
       for (const orderStr of orderStrings) {
         const [field, direction] = orderStr.split(':');
-        if (field && direction) {
-          order[field] = direction.toUpperCase() as 'ASC' | 'DESC';
+
+        if (!field || !direction) {
+          continue;
         }
+
+        if (validColumns && !validColumns.includes(field)) {
+          continue;
+        }
+
+        const normalizedDirection = direction.toUpperCase();
+        if (normalizedDirection !== 'ASC' && normalizedDirection !== 'DESC') {
+          continue;
+        }
+
+        (order as Record<string, 'ASC' | 'DESC'>)[field] = normalizedDirection;
       }
-      return order;
+
+      if (Object.keys(order).length > 0) {
+        return order;
+      }
     }
 
     return defaultOrder;
