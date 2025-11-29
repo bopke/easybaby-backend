@@ -31,6 +31,9 @@ export class User {
   @Column()
   emailVerificationCode: string;
 
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  emailVerificationCodeExpires: Date | null;
+
   @Column({ default: false })
   isEmailVerified: boolean;
 

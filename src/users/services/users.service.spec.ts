@@ -276,6 +276,8 @@ describe('UsersService', () => {
       expect(createCallArgs.emailVerificationCode).toBeTruthy();
       expect(typeof createCallArgs.emailVerificationCode).toBe('string');
       expect(createCallArgs.emailVerificationCode).toHaveLength(6);
+      expect(createCallArgs.emailVerificationCodeExpires).toBeTruthy();
+      expect(createCallArgs.emailVerificationCodeExpires).toBeInstanceOf(Date);
       expect(saveSpy).toHaveBeenCalledWith(createdUser);
       expect(result).toEqual(createdUser);
       expect(result.role).toBe(UserRole.NORMAL);
@@ -360,18 +362,28 @@ describe('UsersService', () => {
 
   describe('verifyEmail', () => {
     it('should verify email when code matches', async () => {
-      const verifiedUser = createMockUser({ isEmailVerified: true });
+      const futureDate = new Date();
+      futureDate.setHours(futureDate.getHours() + 24);
 
-      findOneSpy.mockResolvedValue(mockUser);
+      const userWithValidCode = createMockUser({
+        emailVerificationCodeExpires: futureDate,
+      });
+
+      const verifiedUser = createMockUser({
+        isEmailVerified: true,
+        emailVerificationCodeExpires: futureDate,
+      });
+
+      findOneSpy.mockResolvedValue(userWithValidCode);
       saveSpy.mockResolvedValue(verifiedUser);
 
       const result = await service.verifyEmail(
-        mockUser.email,
-        mockUser.emailVerificationCode,
+        userWithValidCode.email,
+        userWithValidCode.emailVerificationCode,
       );
 
       expect(findOneSpy).toHaveBeenCalledWith({
-        where: { email: mockUser.email },
+        where: { email: userWithValidCode.email },
       });
       expect(saveSpy).toHaveBeenCalled();
       expect(result).toBeTruthy();
@@ -400,6 +412,58 @@ describe('UsersService', () => {
       });
       expect(result).toBeNull();
       expect(saveSpy).not.toHaveBeenCalled();
+    });
+
+    it('should return null when verification code has expired', async () => {
+      const expiredDate = new Date();
+      expiredDate.setHours(expiredDate.getHours() - 1);
+
+      const expiredUser = createMockUser({
+        emailVerificationCodeExpires: expiredDate,
+      });
+
+      findOneSpy.mockResolvedValue(expiredUser);
+
+      const result = await service.verifyEmail(
+        expiredUser.email,
+        expiredUser.emailVerificationCode,
+      );
+
+      expect(findOneSpy).toHaveBeenCalledWith({
+        where: { email: expiredUser.email },
+      });
+      expect(result).toBeNull();
+      expect(saveSpy).not.toHaveBeenCalled();
+    });
+
+    it('should verify email when code is valid and not expired', async () => {
+      const futureDate = new Date();
+      futureDate.setHours(futureDate.getHours() + 24);
+
+      const validUser = createMockUser({
+        emailVerificationCodeExpires: futureDate,
+        isEmailVerified: false,
+      });
+
+      const verifiedUser = createMockUser({
+        emailVerificationCodeExpires: futureDate,
+        isEmailVerified: true,
+      });
+
+      findOneSpy.mockResolvedValue(validUser);
+      saveSpy.mockResolvedValue(verifiedUser);
+
+      const result = await service.verifyEmail(
+        validUser.email,
+        validUser.emailVerificationCode,
+      );
+
+      expect(findOneSpy).toHaveBeenCalledWith({
+        where: { email: validUser.email },
+      });
+      expect(saveSpy).toHaveBeenCalled();
+      expect(result).toBeTruthy();
+      expect(result?.isEmailVerified).toBe(true);
     });
   });
 });

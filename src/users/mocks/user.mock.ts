@@ -7,6 +7,7 @@ export const createMockUser = (overrides?: Partial<User>): User => ({
   password: 'hashedPassword123',
   role: UserRole.NORMAL,
   emailVerificationCode: 'ABC123',
+  emailVerificationCodeExpires: new Date('2024-01-02T00:00:00.000Z'),
   isEmailVerified: false,
   createdAt: new Date('2024-01-01T00:00:00.000Z'),
   updatedAt: new Date('2024-01-01T00:00:00.000Z'),

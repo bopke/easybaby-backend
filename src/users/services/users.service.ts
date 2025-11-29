@@ -49,11 +49,15 @@ export class UsersService {
       this.SALT_ROUNDS,
     );
 
+    const verificationCodeExpires = new Date();
+    verificationCodeExpires.setHours(verificationCodeExpires.getHours() + 24); // 24 hours from now
+
     const user = this.usersRepository.create({
       email: createUserDto.email,
       password: hashedPassword,
       role: UserRole.NORMAL,
       emailVerificationCode: generateVerificationCode(),
+      emailVerificationCodeExpires: verificationCodeExpires,
       isEmailVerified: false,
     });
 
@@ -113,6 +117,14 @@ export class UsersService {
     }
 
     if (user.emailVerificationCode !== verificationCode) {
+      return null;
+    }
+
+    // Check if verification code has expired
+    if (
+      user.emailVerificationCodeExpires &&
+      user.emailVerificationCodeExpires < new Date()
+    ) {
       return null;
     }
 
