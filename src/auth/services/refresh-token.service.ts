@@ -84,7 +84,6 @@ export class RefreshTokenService {
     token: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ipAddress?: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     userAgent?: string,
   ): Promise<RefreshTokenPayload> {
     try {
@@ -117,6 +116,23 @@ export class RefreshTokenService {
 
       if (tokenRecord.expiresAt < new Date()) {
         throw new UnauthorizedException('Token has expired');
+      }
+
+      // Validate user agent matches (detects token theft to different device)
+      if (userAgent && tokenRecord.userAgent) {
+        if (tokenRecord.userAgent !== userAgent) {
+          this.logger.warn(
+            `User agent mismatch for token ${payload.jti}: ` +
+              `stored="${tokenRecord.userAgent}", received="${userAgent}"`,
+          );
+
+          // Revoke this specific token (not entire family - user may have multiple devices)
+          await this.revokeTokenByJti(payload.jti);
+
+          throw new UnauthorizedException(
+            'Your session is no longer valid. Please log in again.',
+          );
+        }
       }
 
       // Update last used timestamp

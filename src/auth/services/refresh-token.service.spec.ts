@@ -234,6 +234,110 @@ describe('RefreshTokenService', () => {
       expect(verifySpy).toHaveBeenCalled();
       expect(findOneSpy).toHaveBeenCalled();
     });
+
+    it('should throw error if user agent does not match', async () => {
+      const mockToken = 'valid.jwt.token';
+      const mockPayload = {
+        sub: mockUser.id,
+        jti: 'jti-123',
+        type: 'refresh' as const,
+        family: 'family-123',
+      };
+      const storedUserAgent = 'Mozilla/5.0 (Windows NT 10.0)';
+      const receivedUserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0)';
+      const mockRefreshToken = createMockRefreshToken({
+        userAgent: storedUserAgent,
+      });
+
+      const verifySpy = jest
+        .spyOn(jwtService, 'verify')
+        .mockReturnValue(mockPayload);
+      const findOneSpy = jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValue(mockRefreshToken);
+      const revokeTokenSpy = jest
+        .spyOn(service, 'revokeTokenByJti')
+        .mockResolvedValue(undefined);
+      const loggerWarnSpy = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation();
+
+      await expect(
+        service.validateRefreshToken(mockToken, undefined, receivedUserAgent),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(verifySpy).toHaveBeenCalled();
+      expect(findOneSpy).toHaveBeenCalled();
+      expect(revokeTokenSpy).toHaveBeenCalledWith(mockPayload.jti);
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('User agent mismatch'),
+      );
+    });
+
+    it('should succeed when user agents match', async () => {
+      const mockToken = 'valid.jwt.token';
+      const mockPayload = {
+        sub: mockUser.id,
+        jti: 'jti-123',
+        type: 'refresh' as const,
+        family: 'family-123',
+      };
+      const userAgent = 'Mozilla/5.0 (Windows NT 10.0)';
+      const mockRefreshToken = createMockRefreshToken({
+        userAgent: userAgent,
+      });
+
+      const verifySpy = jest
+        .spyOn(jwtService, 'verify')
+        .mockReturnValue(mockPayload);
+      const findOneSpy = jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValue(mockRefreshToken);
+      const saveSpy = jest
+        .spyOn(repository, 'save')
+        .mockResolvedValue(mockRefreshToken);
+
+      const result = await service.validateRefreshToken(
+        mockToken,
+        undefined,
+        userAgent,
+      );
+
+      expect(result).toEqual(mockPayload);
+      expect(verifySpy).toHaveBeenCalled();
+      expect(findOneSpy).toHaveBeenCalled();
+      expect(saveSpy).toHaveBeenCalled();
+    });
+
+    it('should succeed when no user agent is provided (backward compatibility)', async () => {
+      const mockToken = 'valid.jwt.token';
+      const mockPayload = {
+        sub: mockUser.id,
+        jti: 'jti-123',
+        type: 'refresh' as const,
+        family: 'family-123',
+      };
+      const mockRefreshToken = createMockRefreshToken({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0)',
+      });
+
+      const verifySpy = jest
+        .spyOn(jwtService, 'verify')
+        .mockReturnValue(mockPayload);
+      const findOneSpy = jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValue(mockRefreshToken);
+      const saveSpy = jest
+        .spyOn(repository, 'save')
+        .mockResolvedValue(mockRefreshToken);
+
+      const result = await service.validateRefreshToken(mockToken);
+
+      expect(result).toEqual(mockPayload);
+      expect(verifySpy).toHaveBeenCalled();
+      expect(findOneSpy).toHaveBeenCalled();
+      expect(saveSpy).toHaveBeenCalled();
+    });
   });
 
   describe('rotateRefreshToken', () => {
