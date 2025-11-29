@@ -46,6 +46,17 @@ export class EmailService {
   }
 
   async sendEmail(emailDto: SendEmailDto): Promise<void> {
+    if (!this.apiInstance) {
+      this.logger.error(
+        `Cannot send email to ${emailDto.to}: Brevo API key not configured`,
+      );
+      const environment = this.configService.get<string>('nodeEnv');
+      if (environment === 'production') {
+        throw new Error('Email service not configured - cannot send email');
+      }
+      return;
+    }
+
     const sendSmtpEmail = new SendSmtpEmail();
 
     sendSmtpEmail.sender = {

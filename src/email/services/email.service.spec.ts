@@ -29,6 +29,7 @@ describe('EmailService', () => {
     >;
     setApiKey: jest.Mock;
   };
+  let mockConfigService: { get: jest.Mock };
 
   beforeEach(async () => {
     mockApiInstance = {
@@ -44,23 +45,25 @@ describe('EmailService', () => {
       return mockApiInstance;
     });
 
+    mockConfigService = {
+      get: jest.fn((key: string, defaultValue?: string) => {
+        const config: Record<string, string> = {
+          'email.brevoApiKey': 'test-api-key',
+          'email.defaultSenderName': 'Workshop Platform',
+          'email.defaultSenderEmail': 'noreply@test.com',
+          nodeEnv: 'test',
+          'app.url': 'http://localhost:3000',
+        };
+        return config[key] || defaultValue;
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmailService,
         {
           provide: ConfigService,
-          useValue: {
-            get: jest.fn((key: string, defaultValue?: string) => {
-              const config: Record<string, string> = {
-                'email.brevoApiKey': 'test-api-key',
-                'email.defaultSenderName': 'Workshop Platform',
-                'email.defaultSenderEmail': 'noreply@test.com',
-                nodeEnv: 'test',
-                'app.url': 'http://localhost:3000',
-              };
-              return config[key] || defaultValue;
-            }),
-          },
+          useValue: mockConfigService,
         },
       ],
     }).compile();
@@ -216,6 +219,88 @@ describe('EmailService', () => {
       );
 
       loggerErrorSpy.mockRestore();
+    });
+  });
+
+  describe('missing API key configuration', () => {
+    let serviceWithoutKey: EmailService;
+
+    beforeEach(async () => {
+      const configWithoutKey = {
+        get: jest.fn((key: string) => {
+          const config: Record<string, string> = {
+            'email.defaultSenderName': 'Workshop Platform',
+            'email.defaultSenderEmail': 'noreply@test.com',
+            nodeEnv: 'development',
+            'app.url': 'http://localhost:3000',
+          };
+          return config[key];
+        }),
+      };
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          EmailService,
+          {
+            provide: ConfigService,
+            useValue: configWithoutKey,
+          },
+        ],
+      }).compile();
+
+      serviceWithoutKey = module.get<EmailService>(EmailService);
+    });
+
+    it('should not initialize apiInstance when API key missing in non-production', () => {
+      expect(serviceWithoutKey).toBeDefined();
+      expect(serviceWithoutKey['apiInstance']).toBeUndefined();
+    });
+
+    it('should log error and return early when sending email without API key in non-production', async () => {
+      const loggerErrorSpy = jest
+        .spyOn(serviceWithoutKey['logger'], 'error')
+        .mockImplementation();
+
+      const emailDto: SendEmailDto = {
+        to: 'test@example.com',
+        subject: 'Test',
+        htmlContent: '<h1>Test</h1>',
+      };
+
+      await serviceWithoutKey.sendEmail(emailDto);
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        'Cannot send email to test@example.com: Brevo API key not configured',
+      );
+
+      loggerErrorSpy.mockRestore();
+    });
+
+    it('should throw error during initialization without API key in production', async () => {
+      // Create a production config without API key
+      const productionConfigWithoutKey = {
+        get: jest.fn((key: string) => {
+          const config: Record<string, string> = {
+            'email.defaultSenderName': 'Workshop Platform',
+            'email.defaultSenderEmail': 'noreply@test.com',
+            nodeEnv: 'production',
+            'app.url': 'http://localhost:3000',
+          };
+          return config[key];
+        }),
+      };
+
+      await expect(
+        Test.createTestingModule({
+          providers: [
+            EmailService,
+            {
+              provide: ConfigService,
+              useValue: productionConfigWithoutKey,
+            },
+          ],
+        }).compile(),
+      ).rejects.toThrow('Email api key not configured');
     });
   });
 
