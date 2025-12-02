@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard, RolesGuard } from './auth/guards';
 import { TrainersModule } from './trainers/trainers.module';
 import { ContactUsModule } from './contact_us/contact_us.module';
+import { ArticlesModule } from './articles/articles.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { ContactUsModule } from './contact_us/contact_us.module';
     AuthModule,
     TrainersModule,
     ContactUsModule,
+    ArticlesModule,
   ],
   controllers: [],
   providers: [
