@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { ConfigService } from '@nestjs/config';
 import { ContactUsService } from '../services/contact_us.service';
 import { ContactUsDto } from '../dtos';
 import { Public } from '../../auth/guards';
@@ -16,11 +17,19 @@ import { TurnstileGuard } from '../../common/guards';
 @ApiTags('Contact Us')
 @Controller('contact-us')
 export class ContactUsController {
-  constructor(private readonly contactUsService: ContactUsService) {}
+  constructor(
+    private readonly contactUsService: ContactUsService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Public()
   @UseGuards(TurnstileGuard)
-  @Throttle({ default: { limit: 3, ttl: 60 * 60 * 1000 } })
+  @Throttle({
+    default: {
+      limit: parseInt(process.env.SENSITIVE_THROTTLE_LIMIT || '3', 10),
+      ttl: parseInt(process.env.SENSITIVE_THROTTLE_TTL || '3600000', 10),
+    },
+  })
   @Post()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({

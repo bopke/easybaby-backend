@@ -4,24 +4,16 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 export const getTypeOrmConfig = (
   configService: ConfigService,
 ): TypeOrmModuleOptions => {
-  const isProduction = configService.get<string>('nodeEnv') === 'production';
-
-  // Environment-specific connection pool configuration
-  const poolConfig = isProduction
-    ? {
-        max: 25, // Higher for production load
-        min: 5,
-        idleTimeoutMillis: 600000, // 10 minutes (connections are expensive)
-        connectionTimeoutMillis: 10000,
-        acquireTimeoutMillis: 60000,
-      }
-    : {
-        max: 10, // Sufficient for development
-        min: 2,
-        idleTimeoutMillis: 300000, // 5 minutes
-        connectionTimeoutMillis: 5000,
-        acquireTimeoutMillis: 30000,
-      };
+  const poolConfig = {
+    max: configService.get<number>('database.pool.size') || 10,
+    min: configService.get<number>('database.pool.minSize') || 5,
+    idleTimeoutMillis:
+      configService.get<number>('database.pool.idleTimeout') || 600000,
+    connectionTimeoutMillis:
+      configService.get<number>('database.pool.connectionTimeout') || 10000,
+    acquireTimeoutMillis:
+      configService.get<number>('database.pool.acquireTimeout') || 60000,
+  };
 
   return {
     type: 'postgres',
@@ -32,7 +24,7 @@ export const getTypeOrmConfig = (
     database: configService.get<string>('database.name'),
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/../migrations/*{.ts,.js}'],
-    synchronize: false, // Always use migrations instead of synchronize
+    synchronize: false,
     migrationsRun: true, // Automatically run migrations on startup
     logging: configService.get<string>('nodeEnv') === 'development',
     extra: poolConfig,

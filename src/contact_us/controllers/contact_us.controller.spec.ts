@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { ContactUsController } from './contact_us.controller';
 import { ContactUsService } from '../services/contact_us.service';
 import { ContactUsDto } from '../dtos';
@@ -16,6 +17,10 @@ describe('ContactUsController', () => {
     verifyToken: jest.fn(),
   };
 
+  const mockConfigService = {
+    get: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ContactUsController],
@@ -27,6 +32,10 @@ describe('ContactUsController', () => {
         {
           provide: TurnstileService,
           useValue: mockTurnstileService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();

@@ -35,10 +35,8 @@ export class ContactUsDto {
   @ApiProperty({
     description: 'Content of the message',
     example: 'I would like to know more about your workshops...',
-    maxLength: 5000,
   })
   @IsNotEmpty()
   @IsString()
-  @MaxLength(5000)
   message: string;
 }

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ConflictException, NotFoundException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { User } from '../entities/user.entity';
@@ -62,6 +63,15 @@ describe('UsersService', () => {
           provide: DataSource,
           useValue: {
             createQueryRunner: jest.fn().mockReturnValue(queryRunner),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockImplementation((key: string) => {
+              if (key === 'security.bcryptSaltRounds') return 10;
+              return undefined;
+            }),
           },
         },
       ],

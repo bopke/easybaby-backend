@@ -5,11 +5,21 @@ export default () => ({
     origin: process.env.CORS_ORIGIN,
   },
   database: {
-    host: process.env.DATABASE_HOST,
-    port: parseInt(process.env.DATABASE_PORT || '5432', 10),
-    user: process.env.DATABASE_USER,
-    password: process.env.DATABASE_PASSWORD,
-    name: process.env.DATABASE_NAME,
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    name: process.env.DB_NAME,
+    pool: {
+      size: parseInt(process.env.DB_POOL_SIZE || '10', 10),
+      minSize: parseInt(process.env.DB_POOL_MIN_SIZE || '5', 10),
+      idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT || '600000', 10),
+      connectionTimeout: parseInt(
+        process.env.DB_CONNECTION_TIMEOUT || '10000',
+        10,
+      ),
+      acquireTimeout: parseInt(process.env.DB_ACQUIRE_TIMEOUT || '60000', 10),
+    },
   },
   jwt: {
     secret: process.env.JWT_SECRET,
@@ -32,5 +42,16 @@ export default () => ({
   },
   turnstile: {
     secretKey: process.env.TURNSTILE_SECRET_KEY,
+  },
+  security: {
+    bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS || '10', 10),
+  },
+  throttle: {
+    // Global rate limiting
+    ttl: parseInt(process.env.THROTTLE_TTL || '60000', 10), // 1 minute
+    limit: parseInt(process.env.THROTTLE_LIMIT || '60', 10), // 60 requests per TTL
+    // Sensitive endpoints rate limiting (contact form, etc.)
+    sensitiveTtl: parseInt(process.env.SENSITIVE_THROTTLE_TTL || '3600000', 10), // 1 hour
+    sensitiveLimit: parseInt(process.env.SENSITIVE_THROTTLE_LIMIT || '3', 10), // 3 requests per TTL
   },
 });

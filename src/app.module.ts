@@ -28,12 +28,15 @@ import { ContactUsModule } from './contact_us/contact_us.module';
       useFactory: (configService: ConfigService) =>
         getTypeOrmConfig(configService),
     }),
-    ThrottlerModule.forRoot([
-      {
-        limit: 60, // number...
-        ttl: 60 * 1000, // ... per minute
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => [
+        {
+          limit: configService.get<number>('throttle.limit') || 60,
+          ttl: configService.get<number>('throttle.ttl') || 60000,
+        },
+      ],
+    }),
     ScheduleModule.forRoot(),
     HealthModule,
     UsersModule,

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { User } from '../entities/user.entity';
 import { CreateUserDto, UpdateUserDto } from '../dtos';
@@ -15,13 +16,17 @@ import { generateVerificationCode } from '../utils';
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
-  private readonly SALT_ROUNDS = 10;
 
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly dataSource: DataSource,
+    private readonly configService: ConfigService,
   ) {}
+
+  private getSaltRounds(): number {
+    return this.configService.get<number>('security.bcryptSaltRounds') || 10;
+  }
 
   async findAll(): Promise<User[]> {
     return this.usersRepository.find();
@@ -49,7 +54,7 @@ export class UsersService {
 
     const hashedPassword = await bcrypt.hash(
       createUserDto.password,
-      this.SALT_ROUNDS,
+      this.getSaltRounds(),
     );
 
     const verificationCodeExpires = new Date();
@@ -97,7 +102,7 @@ export class UsersService {
       if (updateUserDto.password) {
         updateData.password = await bcrypt.hash(
           updateUserDto.password,
-          this.SALT_ROUNDS,
+          this.getSaltRounds(),
         );
       }
 
