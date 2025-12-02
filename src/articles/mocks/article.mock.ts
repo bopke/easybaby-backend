@@ -1,4 +1,25 @@
-import { Article } from '../entities';
+import { Article, ArticleTag } from '../entities';
+
+const mockTag1: ArticleTag = {
+  id: '1',
+  tag: 'parenting',
+  article: {} as Article,
+  articleId: '123e4567-e89b-12d3-a456-426614174000',
+};
+
+const mockTag2: ArticleTag = {
+  id: '2',
+  tag: 'sign-language',
+  article: {} as Article,
+  articleId: '123e4567-e89b-12d3-a456-426614174000',
+};
+
+const mockTag3: ArticleTag = {
+  id: '3',
+  tag: 'baby-development',
+  article: {} as Article,
+  articleId: '123e4567-e89b-12d3-a456-426614174000',
+};
 
 export const mockArticle: Article = {
   id: '123e4567-e89b-12d3-a456-426614174000',
@@ -12,6 +33,7 @@ export const mockArticle: Article = {
     '<p>Baby sign language is a wonderful way to communicate with your infant before they can speak...</p>',
   author: 'Dr. Jane Smith',
   publishedDate: new Date('2024-01-15T00:00:00.000Z'),
+  tags: [mockTag1, mockTag2, mockTag3],
   createdAt: new Date('2024-01-15T10:30:00.000Z'),
   updatedAt: new Date('2024-01-15T10:30:00.000Z'),
 };

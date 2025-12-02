@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsDateString,
+  IsArray,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateArticleDto {
   @ApiProperty({
@@ -66,4 +72,15 @@ export class CreateArticleDto {
   @IsDateString()
   @IsNotEmpty()
   publishedDate: Date;
+
+  @ApiProperty({
+    description: 'Article tags',
+    example: ['parenting', 'sign-language', 'baby-development'],
+    required: false,
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
 }

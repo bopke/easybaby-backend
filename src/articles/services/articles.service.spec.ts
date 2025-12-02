@@ -149,7 +149,60 @@ describe('ArticlesService', () => {
   });
 
   describe('create', () => {
-    it('should create a new article', async () => {
+    it('should create a new article with tags', async () => {
+      const createArticleDto: CreateArticleDto = {
+        slug: 'getting-started-with-baby-sign-language',
+        metaTitle: 'Getting Started with Baby Sign Language - Complete Guide',
+        metaDescription:
+          'Learn how to introduce sign language to your baby with our comprehensive guide.',
+        header: 'Getting Started with Baby Sign Language',
+        subheader: 'A comprehensive guide for parents',
+        contents:
+          '<p>Baby sign language is a wonderful way to communicate...</p>',
+        author: 'Dr. Jane Smith',
+        publishedDate: new Date('2024-01-15T00:00:00.000Z'),
+        tags: ['parenting', 'sign-language', 'baby-development'],
+      };
+
+      const createdArticle: Article = {
+        id: 'new-article-id',
+        slug: createArticleDto.slug,
+        metaTitle: createArticleDto.metaTitle,
+        metaDescription: createArticleDto.metaDescription,
+        header: createArticleDto.header,
+        subheader: createArticleDto.subheader,
+        contents: createArticleDto.contents,
+        author: createArticleDto.author,
+        publishedDate: createArticleDto.publishedDate,
+        tags: mockArticle.tags,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const createSpy = jest.spyOn(repository, 'create').mockReturnValue({
+        ...createdArticle,
+        tags: [],
+      });
+      saveSpy.mockResolvedValue(createdArticle);
+
+      const result = await service.create(createArticleDto);
+
+      const { tags, ...articleDataWithoutTags } = createArticleDto;
+      expect(createSpy).toHaveBeenCalledWith(articleDataWithoutTags);
+
+      // Verify that tags were created and assigned to the article
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const savedArticle = saveSpy.mock.calls[0][0] as Article;
+      expect(savedArticle.tags).toHaveLength(3);
+      expect(savedArticle.tags).toHaveLength(tags!.length);
+      expect(savedArticle.tags[0].tag).toBe(tags![0]);
+      expect(savedArticle.tags[1].tag).toBe(tags![1]);
+      expect(savedArticle.tags[2].tag).toBe(tags![2]);
+
+      expect(result).toEqual(createdArticle);
+    });
+
+    it('should create a new article without tags', async () => {
       const createArticleDto: CreateArticleDto = {
         slug: 'getting-started-with-baby-sign-language',
         metaTitle: 'Getting Started with Baby Sign Language - Complete Guide',
@@ -166,6 +219,7 @@ describe('ArticlesService', () => {
       const createdArticle: Article = {
         id: 'new-article-id',
         ...createArticleDto,
+        tags: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -202,6 +256,31 @@ describe('ArticlesService', () => {
         ...mockArticle,
         ...updateArticleDto,
       });
+      expect(result).toEqual(updatedArticle);
+    });
+
+    it('should update an article with new tags', async () => {
+      const updateWithTags: UpdateArticleDto = {
+        header: 'Updated Header',
+        tags: ['new-tag-1', 'new-tag-2'],
+      };
+      const updatedArticle = { ...mockArticle, header: 'Updated Header' };
+      findOneSpy.mockResolvedValue(mockArticle);
+      saveSpy.mockResolvedValue(updatedArticle);
+
+      const result = await service.update(mockArticle.id, updateWithTags);
+
+      expect(findOneSpy).toHaveBeenCalledWith({
+        where: { id: mockArticle.id },
+      });
+
+      // Verify that tags were replaced with new ones
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const savedArticle = saveSpy.mock.calls[0][0] as Article;
+      expect(savedArticle.tags).toHaveLength(2);
+      expect(savedArticle.tags[0].tag).toBe('new-tag-1');
+      expect(savedArticle.tags[1].tag).toBe('new-tag-2');
+
       expect(result).toEqual(updatedArticle);
     });
 

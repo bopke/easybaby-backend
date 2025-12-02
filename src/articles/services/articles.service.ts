@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Article } from '../entities';
+import { Article, ArticleTag } from '../entities';
 import {
   CreateArticleDto,
   UpdateArticleDto,
@@ -76,7 +76,17 @@ export class ArticlesService {
   }
 
   async create(createArticleDto: CreateArticleDto): Promise<Article> {
-    const article = this.articlesRepository.create(createArticleDto);
+    const { tags, ...articleData } = createArticleDto;
+    const article = this.articlesRepository.create(articleData);
+
+    if (tags && tags.length > 0) {
+      article.tags = tags.map((tag) => {
+        const articleTag = new ArticleTag();
+        articleTag.tag = tag;
+        return articleTag;
+      });
+    }
+
     return this.articlesRepository.save(article);
   }
 
@@ -85,7 +95,18 @@ export class ArticlesService {
     updateArticleDto: UpdateArticleDto,
   ): Promise<Article> {
     const article = await this.findOne(id);
-    Object.assign(article, updateArticleDto);
+    const { tags, ...articleData } = updateArticleDto;
+
+    Object.assign(article, articleData);
+
+    if (tags) {
+      article.tags = tags.map((tag) => {
+        const articleTag = new ArticleTag();
+        articleTag.tag = tag;
+        return articleTag;
+      });
+    }
+
     return this.articlesRepository.save(article);
   }
 

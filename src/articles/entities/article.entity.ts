@@ -3,9 +3,11 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ArticleTag } from './tag.entity';
 
 @Entity('articles')
 export class Article {
@@ -38,6 +40,12 @@ export class Article {
   @Column()
   @Index()
   publishedDate: Date;
+
+  @OneToMany(() => ArticleTag, (tag) => tag.article, {
+    cascade: true,
+    eager: true,
+  })
+  tags: ArticleTag[];
 
   @CreateDateColumn()
   createdAt: Date;

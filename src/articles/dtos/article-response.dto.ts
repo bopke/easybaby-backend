@@ -68,6 +68,14 @@ export class ArticleResponseDto {
   publishedDate: Date;
 
   @ApiProperty({
+    description: 'Article tags',
+    example: ['parenting', 'sign-language', 'baby-development'],
+    type: [String],
+  })
+  @Expose({ groups: ['public', 'user', 'admin'] })
+  tags: string[];
+
+  @ApiProperty({
     description: 'Creation timestamp (admin only)',
     example: '2024-01-15T10:30:00.000Z',
   })
@@ -91,6 +99,7 @@ export class ArticleResponseDto {
     this.contents = article.contents;
     this.author = article.author;
     this.publishedDate = article.publishedDate;
+    this.tags = article.tags ? article.tags.map((t) => t.tag) : [];
     this.createdAt = article.createdAt;
     this.updatedAt = article.updatedAt;
   }
