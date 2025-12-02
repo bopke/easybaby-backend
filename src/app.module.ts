@@ -32,8 +32,14 @@ import { ContactUsModule } from './contact_us/contact_us.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => [
         {
-          limit: configService.get<number>('throttle.limit') || 60,
-          ttl: configService.get<number>('throttle.ttl') || 60000,
+          name: 'default',
+          limit: configService.get<number>('throttle.limit')!,
+          ttl: configService.get<number>('throttle.ttl')!,
+        },
+        {
+          name: 'sensitive',
+          limit: configService.get<number>('throttle.sensitiveLimit')!,
+          ttl: configService.get<number>('throttle.sensitiveTtl')!,
         },
       ],
     }),
