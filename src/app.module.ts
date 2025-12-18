@@ -15,6 +15,7 @@ import { JwtAuthGuard, RolesGuard } from './auth/guards';
 import { TrainersModule } from './trainers/trainers.module';
 import { ContactUsModule } from './contact_us/contact_us.module';
 import { ArticlesModule } from './articles/articles.module';
+import { CoursesModule } from './courses/courses.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { ArticlesModule } from './articles/articles.module';
     TrainersModule,
     ContactUsModule,
     ArticlesModule,
+    CoursesModule,
   ],
   controllers: [],
   providers: [

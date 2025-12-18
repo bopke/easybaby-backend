@@ -10,6 +10,7 @@ import {
 } from '../dtos';
 import { Paginated, Pagination } from '../../common/pagination';
 import { PaginationService } from '../../common/services/pagination.service';
+import { isUuid } from '../../common/utils';
 
 @Injectable()
 export class ArticlesService {
@@ -57,18 +58,15 @@ export class ArticlesService {
   }
 
   async findOne(idOrSlug: string): Promise<Article> {
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        idOrSlug,
-      );
+    const isUuidValue = isUuid(idOrSlug);
 
     const article = await this.articlesRepository.findOne({
-      where: isUuid ? { id: idOrSlug } : { slug: idOrSlug },
+      where: isUuidValue ? { id: idOrSlug } : { slug: idOrSlug },
     });
 
     if (!article) {
       throw new NotFoundException(
-        `Article with ${isUuid ? 'ID' : 'slug'} "${idOrSlug}" not found`,
+        `Article with ${isUuidValue ? 'ID' : 'slug'} "${idOrSlug}" not found`,
       );
     }
 
