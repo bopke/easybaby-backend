@@ -9,6 +9,7 @@ export const mockTrainer: Trainer = {
   site: 'https://example.com',
   phone: '+48 123 456 789',
   additionalOffer: 'Individual training sessions',
+  imageUrl: 'https://example.com/images/trainer.jpg',
   isVerified: false,
   notes: 'Available on weekends',
   createdAt: new Date('2024-01-15T10:30:00.000Z'),

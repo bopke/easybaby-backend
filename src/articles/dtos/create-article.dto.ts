@@ -1,10 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
   IsDateString,
   IsArray,
   IsOptional,
+  IsUrl,
 } from 'class-validator';
 
 export class CreateArticleDto {
@@ -72,6 +73,15 @@ export class CreateArticleDto {
   @IsDateString()
   @IsNotEmpty()
   publishedDate: Date;
+
+  @ApiPropertyOptional({
+    description: 'Article featured image URL',
+    example: 'https://example.com/images/article.jpg',
+  })
+  @IsString()
+  @IsUrl()
+  @IsOptional()
+  imageUrl?: string;
 
   @ApiProperty({
     description: 'Article tags',

@@ -33,6 +33,7 @@ export const mockArticle: Article = {
     '<p>Baby sign language is a wonderful way to communicate with your infant before they can speak...</p>',
   author: 'Dr. Jane Smith',
   publishedDate: new Date('2024-01-15T00:00:00.000Z'),
+  imageUrl: 'https://example.com/images/article.jpg',
   tags: [mockTag1, mockTag2, mockTag3],
   createdAt: new Date('2024-01-15T10:30:00.000Z'),
   updatedAt: new Date('2024-01-15T10:30:00.000Z'),

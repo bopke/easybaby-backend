@@ -23,6 +23,13 @@ export class UserResponseDto {
   role: UserRole;
 
   @ApiProperty({
+    description: 'User profile image URL',
+    example: 'https://example.com/images/profile.jpg',
+    nullable: true,
+  })
+  imageUrl?: string;
+
+  @ApiProperty({
     description: 'User creation timestamp',
     example: '2024-01-15T10:30:00.000Z',
   })
@@ -38,6 +45,7 @@ export class UserResponseDto {
     this.id = user.id;
     this.email = user.email;
     this.role = user.role;
+    this.imageUrl = user.imageUrl;
     this.createdAt = user.createdAt;
     this.updatedAt = user.updatedAt;
   }

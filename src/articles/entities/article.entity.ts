@@ -41,6 +41,9 @@ export class Article {
   @Index()
   publishedDate: Date;
 
+  @Column({ nullable: true })
+  imageUrl?: string;
+
   @OneToMany(() => ArticleTag, (tag) => tag.article, {
     cascade: true,
     eager: true,
