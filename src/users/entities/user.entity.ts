@@ -37,6 +37,9 @@ export class User {
   @Column({ default: false })
   isEmailVerified: boolean;
 
+  @Column({ nullable: true })
+  imageUrl?: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

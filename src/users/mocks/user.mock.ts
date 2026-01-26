@@ -9,6 +9,7 @@ export const createMockUser = (overrides?: Partial<User>): User => ({
   emailVerificationCode: 'ABC123',
   emailVerificationCodeExpires: new Date('2024-01-02T00:00:00.000Z'),
   isEmailVerified: false,
+  imageUrl: 'https://example.com/images/profile.jpg',
   createdAt: new Date('2024-01-01T00:00:00.000Z'),
   updatedAt: new Date('2024-01-01T00:00:00.000Z'),
   ...overrides,

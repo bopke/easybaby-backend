@@ -1,5 +1,11 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  IsOptional,
+  IsUrl,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -17,4 +23,13 @@ export class CreateUserDto {
   @IsString()
   @MinLength(6)
   password: string;
+
+  @ApiPropertyOptional({
+    description: 'User profile image URL',
+    example: 'https://example.com/images/profile.jpg',
+  })
+  @IsString()
+  @IsUrl()
+  @IsOptional()
+  imageUrl?: string;
 }

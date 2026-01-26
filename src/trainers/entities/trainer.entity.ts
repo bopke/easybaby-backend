@@ -39,7 +39,9 @@ export class Trainer {
   @Column()
   isVerified: boolean;
 
-  //TODO: PHOTO
+  @Column({ nullable: true })
+  imageUrl?: string;
+
   @Column({ nullable: true })
   notes?: string;
 

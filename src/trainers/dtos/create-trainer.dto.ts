@@ -1,10 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
   IsEmail,
   IsOptional,
   IsBoolean,
+  IsUrl,
 } from 'class-validator';
 
 export class CreateTrainerDto {
@@ -74,6 +75,15 @@ export class CreateTrainerDto {
   @IsBoolean()
   @IsNotEmpty()
   isVerified: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Profile image URL',
+    example: 'https://example.com/images/trainer.jpg',
+  })
+  @IsString()
+  @IsUrl()
+  @IsOptional()
+  imageUrl?: string;
 
   @ApiProperty({
     description: 'Additional notes',

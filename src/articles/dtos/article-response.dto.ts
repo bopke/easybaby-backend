@@ -68,6 +68,14 @@ export class ArticleResponseDto {
   publishedDate: Date;
 
   @ApiProperty({
+    description: 'Article featured image URL',
+    example: 'https://example.com/images/article.jpg',
+    nullable: true,
+  })
+  @Expose({ groups: ['public', 'user', 'admin'] })
+  imageUrl?: string;
+
+  @ApiProperty({
     description: 'Article tags',
     example: ['parenting', 'sign-language', 'baby-development'],
     type: [String],
@@ -99,6 +107,7 @@ export class ArticleResponseDto {
     this.contents = article.contents;
     this.author = article.author;
     this.publishedDate = article.publishedDate;
+    this.imageUrl = article.imageUrl;
     this.tags = article.tags ? article.tags.map((t) => t.tag) : [];
     this.createdAt = article.createdAt;
     this.updatedAt = article.updatedAt;

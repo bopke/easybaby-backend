@@ -63,6 +63,14 @@ export class TrainerResponseDto {
   additionalOffer?: string;
 
   @ApiProperty({
+    description: 'Profile image URL',
+    example: 'https://example.com/images/trainer.jpg',
+    nullable: true,
+  })
+  @Expose({ groups: ['public', 'user', 'admin'] })
+  imageUrl?: string;
+
+  @ApiProperty({
     description: 'Verification status of the trainer (admin only)',
     example: false,
   })
@@ -100,6 +108,7 @@ export class TrainerResponseDto {
     this.site = trainer.site;
     this.phone = trainer.phone;
     this.additionalOffer = trainer.additionalOffer;
+    this.imageUrl = trainer.imageUrl;
     this.isVerified = trainer.isVerified;
     this.notes = trainer.notes;
     this.createdAt = trainer.createdAt;
