@@ -80,6 +80,64 @@ services:
       - test
     command: npm run test
 
+  postgres-e2e:
+    image: postgres:17
+    restart: "no"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres_e2e
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - db
+    profiles:
+      - e2e
+
+  e2e:
+    build: .
+    depends_on:
+      postgres-e2e:
+        condition: service_healthy
+    environment:
+      NODE_ENV: test
+      PORT: 3000
+      CORS_ORIGIN: '*'
+      DB_HOST: postgres-e2e
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: postgres_e2e
+      DB_POOL_SIZE: 5
+      DB_POOL_MIN_SIZE: 2
+      DB_IDLE_TIMEOUT: 300000
+      DB_CONNECTION_TIMEOUT: 5000
+      DB_ACQUIRE_TIMEOUT: 30000
+      JWT_SECRET: e2e-test-secret
+      JWT_ISSUER: easybaby-api
+      JWT_AUDIENCE: easybaby-api
+      JWT_ACCESS_TOKEN_TTL: 3600
+      REFRESH_TOKEN_SECRET: e2e-test-refresh-secret
+      JWT_REFRESH_TOKEN_TTL: 2592000
+      BREVO_API_KEY: e2e-test-key
+      DEFAULT_SENDER_EMAIL: noreply@test.com
+      DEFAULT_SENDER_NAME: E2E Test
+      CONTACT_EMAIL: test@test.com
+      TURNSTILE_SECRET_KEY: e2e-test-turnstile
+      BCRYPT_SALT_ROUNDS: 4
+      THROTTLE_TTL: 60000
+      THROTTLE_LIMIT: 1000
+      SENSITIVE_THROTTLE_TTL: 3600000
+      SENSITIVE_THROTTLE_LIMIT: 100
+    networks:
+      - db
+    profiles:
+      - e2e
+    command: npm run test:e2e
+
 volumes:
   postgres-data:
 networks:
