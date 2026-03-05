@@ -24,42 +24,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      # Application configuration
-      NODE_ENV: development
-      PORT: 3000
-      CORS_ORIGIN: '*'
-      # Database configuration
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: postgres
-      DB_POOL_SIZE: 5
-      DB_POOL_MIN_SIZE: 2
-      DB_IDLE_TIMEOUT: 300000
-      DB_CONNECTION_TIMEOUT: 5000
-      DB_ACQUIRE_TIMEOUT: 30000
-      # JWT configuration
-      JWT_SECRET: changeme
-      JWT_ISSUER: easybaby-api
-      JWT_AUDIENCE: easybaby-api
-      JWT_ACCESS_TOKEN_TTL: 3600
-      REFRESH_TOKEN_SECRET: changeme-refresh
-      JWT_REFRESH_TOKEN_TTL: 2592000
-      # Email configuration
-      BREVO_API_KEY: provide_me
-      DEFAULT_SENDER_EMAIL: noreply@bopke.dev
-      DEFAULT_SENDER_NAME: someone
-      CONTACT_EMAIL: contact@bopke.dev
-      # Security configuration
-      TURNSTILE_SECRET_KEY: changeme-turnstile
-      BCRYPT_SALT_ROUNDS: 10
-      # Rate limiting configuration
-      THROTTLE_TTL: 60000
-      THROTTLE_LIMIT: 60
-      SENSITIVE_THROTTLE_TTL: 3600000
-      SENSITIVE_THROTTLE_LIMIT: 3
+    env_file:
+      - .env.docker
     healthcheck:
       test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/health']
       interval: 30s
@@ -79,6 +45,50 @@ services:
     profiles:
       - test
     command: npm run test
+
+  postgres-e2e:
+    image: postgres:17
+    restart: "no"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres_e2e
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - db
+    profiles:
+      - e2e
+
+  e2e:
+    build: .
+    depends_on:
+      postgres-e2e:
+        condition: service_healthy
+    env_file:
+      - .env.docker
+    environment:
+      NODE_ENV: test
+      DB_HOST: postgres-e2e
+      DB_NAME: postgres_e2e
+      JWT_SECRET: e2e-test-secret
+      REFRESH_TOKEN_SECRET: e2e-test-refresh-secret
+      BREVO_API_KEY: e2e-test-key
+      DEFAULT_SENDER_EMAIL: noreply@test.com
+      DEFAULT_SENDER_NAME: E2E Test
+      CONTACT_EMAIL: test@test.com
+      TURNSTILE_SECRET_KEY: e2e-test-turnstile
+      BCRYPT_SALT_ROUNDS: 4
+      THROTTLE_LIMIT: 1000
+      SENSITIVE_THROTTLE_LIMIT: 100
+    networks:
+      - db
+    profiles:
+      - e2e
+    command: npm run test:e2e
 
 volumes:
   postgres-data:

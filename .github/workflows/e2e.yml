@@ -1,0 +1,27 @@
+name: E2E Tests
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run E2E tests
+        run: docker compose --profile e2e up --build --abort-on-container-exit --exit-code-from e2e
+
+      - name: Cleanup
+        if: always()
+        run: docker compose --profile e2e down
